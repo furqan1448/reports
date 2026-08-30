@@ -4,7 +4,7 @@
 
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
 // (لازم ينتهي بـ /exec)
-const API_URL = "https://script.google.com/macros/s/AKfycbwjfJ8HFDaVSFCRiyumsroz5KdHeJ491hbX-Tq65hUN2QE0z1IX45xN0oT3BkoQqWFc/exec";
+const API_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
 
 export async function callApi(action, data) {
   if (API_URL.indexOf("PASTE_YOUR") === 0) {

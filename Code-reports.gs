@@ -41,7 +41,7 @@ const JSON_COLUMNS_ = REPORT_COLUMNS_.filter(function (c) {
 });
 
 function setup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = ss_();
 
   const sheets = {
     'المستخدمات': ['الاسم', 'اسم المستخدم', 'كلمة المرور', 'الدور', 'القسم', 'الوحدة'],
@@ -73,9 +73,18 @@ function setup() {
   }
 
   invalidateCache_('المستخدمات');
-  invalidateCache_('التقارير');
+  invalidateReportsIndex_();
 
-  SpreadsheetApp.getUi().alert('تم إنشاء/تحديث الشيتات بنجاح. عبّي شيت "المستخدمات" بأسماء وحسابات الموظفات، ثم Deploy > Manage deployments > تعديل > New version لنشر آخر تحديث.');
+  const msg = 'تم إنشاء/تحديث الشيتات بنجاح. عبّي شيت "المستخدمات" بأسماء وحسابات الموظفات، ثم Deploy > Manage deployments > تعديل > New version لنشر آخر تحديث.';
+  Logger.log(msg);
+  // alert() تحتاج إن يكون الشيت نفسه مفتوح بنفس المتصفح وقت التشغيل، ولو ما كان
+  // كذا يطلع خطأ "Cannot call SpreadsheetApp.getUi()". نتجاهله بأمان لأن الإعداد
+  // نفسه اكتمل فعليًا - النتيجة موجودة بـ Execution log (أو افتحي الشيت وشوفيه مباشرة).
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // لا شيء - راجعي الشيت مباشرة أو Execution log بالمحرر
+  }
 }
 
 /* ------------------- خرائط الأدوار والأقسام ------------------- */
@@ -119,8 +128,16 @@ const CACHE_SECONDS_USERS_ = 300;
 
 /* ------------------- أدوات عامة (كاش + قراءة/كتابة الشيت) ------------------- */
 
+// نحتفظ بمرجع الشيت بمتغيّر عام بدل ما نناديه من جديد بكل دالة -
+// توفير بسيط بس يجمع مع باقي التحسينات
+let _ss_cached = null;
+function ss_() {
+  if (!_ss_cached) _ss_cached = SpreadsheetApp.getActiveSpreadsheet();
+  return _ss_cached;
+}
+
 function sheet_(name) {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+  return ss_().getSheetByName(name);
 }
 
 function colIndex_(sh, headerName) {
@@ -245,19 +262,64 @@ function buildReportObject_(row) {
   return report;
 }
 
+// فهرس خفيف لشيت "التقارير": يقرأ بس ٣ أعمدة صغيرة (المعرف/اسم المستخدم/الحالة)
+// بدل قراءة كل الأعمدة الـ١٨ (منها ١٤ عمود JSON ثقيل) لكل الصفوف في كل طلب.
+// هذا الفهرس صغير جدًا فيبقى دايمًا تحت حد الـ١٠٠ كيلوبايت المسموح بالكاش،
+// عكس محاولة تخزين الشيت كامل بأعمدته الثقيلة (اللي كانت تفشل بصمت).
+function getReportsIndex_() {
+  const cache = getCache_();
+  const cacheKey = 'idx_' + REPORTS_SHEET_;
+  try {
+    const cached = cache.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (e) { /* تجاهل */ }
+
+  const sh = sheet_(REPORTS_SHEET_);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return [];
+
+  const numRows = lastRow - 1;
+  const ids = sh.getRange(2, colIndex_(sh, 'المعرف'), numRows, 1).getValues();
+  const users = sh.getRange(2, colIndex_(sh, 'اسم المستخدم'), numRows, 1).getValues();
+  const statuses = sh.getRange(2, colIndex_(sh, 'الحالة'), numRows, 1).getValues();
+
+  const index = [];
+  for (let i = 0; i < numRows; i++) {
+    index.push({ id: ids[i][0], username: users[i][0], status: statuses[i][0], row: i + 2 });
+  }
+
+  try { cache.put(cacheKey, JSON.stringify(index), CACHE_SECONDS_REPORTS_); } catch (e) { /* تجاهل */ }
+  return index;
+}
+
+function invalidateReportsIndex_() {
+  try { getCache_().remove('idx_' + REPORTS_SHEET_); } catch (e) { /* تجاهل */ }
+}
+
+// تقرأ صف واحد محدد بكل أعمدته (يشمل بيانات الأقسام) - قراءة مستهدفة وخفيفة،
+// بدل تحميل كل صفوف الشيت عشان تجيب صف واحد بس.
+function getReportRowFull_(rowNumber) {
+  const sh = sheet_(REPORTS_SHEET_);
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const values = sh.getRange(rowNumber, 1, 1, sh.getLastColumn()).getValues()[0];
+  const obj = {};
+  headers.forEach(function (h, idx) { obj[h] = values[idx]; });
+  obj._row = rowNumber;
+  return obj;
+}
+
 // تُرجع معرّف مسودة نشطة للمستخدمة + بيانات التقرير كاملة بنفس الطلب
-// (توفير جولة شبكة كاملة على كل فتح صفحة، وهذا كان يسبب بطء ملموس)
 function getOrCreateReport_(p) {
   const username = String(p.username || '').trim().toLowerCase();
   if (!username) return { ok: false, error: 'اسم المستخدم مفقود' };
 
-  const rows = sheetToObjects_(REPORTS_SHEET_, CACHE_SECONDS_REPORTS_);
-  const existing = rows.find(function (r) {
-    return String(r['اسم المستخدم']).trim().toLowerCase() === username &&
-      String(r['الحالة']).trim() === DRAFT_STATUS_;
+  const index = getReportsIndex_();
+  const existing = index.find(function (r) {
+    return String(r.username).trim().toLowerCase() === username && String(r.status).trim() === DRAFT_STATUS_;
   });
   if (existing) {
-    return { ok: true, reportId: existing['المعرف'], report: buildReportObject_(existing) };
+    const row = getReportRowFull_(existing.row);
+    return { ok: true, reportId: existing.id, report: buildReportObject_(row) };
   }
 
   const sh = sheet_(REPORTS_SHEET_);
@@ -273,30 +335,31 @@ function getOrCreateReport_(p) {
     return '';
   });
   sh.appendRow(rowValues);
-  invalidateCache_(REPORTS_SHEET_);
+  invalidateReportsIndex_();
 
   const emptyRow = {};
   headers.forEach(function (h, idx) { emptyRow[h] = rowValues[idx]; });
   return { ok: true, reportId: id, report: buildReportObject_(emptyRow) };
 }
 
-function findReportRow_(reportId) {
-  const rows = sheetToObjects_(REPORTS_SHEET_, CACHE_SECONDS_REPORTS_);
-  return rows.find(function (r) { return String(r['المعرف']).trim() === String(reportId).trim(); });
+function findReportIndexEntry_(reportId) {
+  const index = getReportsIndex_();
+  return index.find(function (r) { return String(r.id).trim() === String(reportId).trim(); });
 }
 
 function getReport_(p) {
-  const row = findReportRow_(p.reportId);
-  if (!row) return { ok: false, error: 'ما لقينا هذا التقرير' };
+  const entry = findReportIndexEntry_(p.reportId);
+  if (!entry) return { ok: false, error: 'ما لقينا هذا التقرير' };
+  const row = getReportRowFull_(entry.row);
   return { ok: true, report: buildReportObject_(row) };
 }
 
 function saveSection_(p) {
-  const row = findReportRow_(p.reportId);
-  if (!row) return { ok: false, error: 'ما لقينا هذا التقرير' };
+  const entry = findReportIndexEntry_(p.reportId);
+  if (!entry) return { ok: false, error: 'ما لقينا هذا التقرير' };
 
   const username = String(p.username || '').trim().toLowerCase();
-  if (String(row['اسم المستخدم']).trim().toLowerCase() !== username) {
+  if (String(entry.username).trim().toLowerCase() !== username) {
     return { ok: false, error: 'غير مخوّلة بتعديل هذا التقرير' };
   }
 
@@ -305,9 +368,10 @@ function saveSection_(p) {
 
   const sh = sheet_(REPORTS_SHEET_);
   const dataText = typeof p.data === 'string' ? p.data : JSON.stringify(p.data);
-  sh.getRange(row._row, colIndex_(sh, column)).setValue(dataText);
-  sh.getRange(row._row, colIndex_(sh, 'آخر تحديث')).setValue(new Date());
-  invalidateCache_(REPORTS_SHEET_);
+  sh.getRange(entry.row, colIndex_(sh, column)).setValue(dataText);
+  sh.getRange(entry.row, colIndex_(sh, 'آخر تحديث')).setValue(new Date());
+  // ملاحظة: ما نحتاج نُبطل فهرس التقارير هنا لأن saveSection ما يغيّر
+  // المعرف/اسم المستخدم/الحالة (نفس الأعمدة المخزّنة بالفهرس) - توفير طلب كاش إضافي.
 
   return { ok: true };
 }
