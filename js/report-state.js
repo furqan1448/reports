@@ -1,18 +1,18 @@
 // js/report-state.js
 // إدارة "التقرير الحالي" (مسودة) التي تُبنى منها كل الأقسام
-// النسخة الحالية: قوقل شيت + Google Apps Script (بدل Firestore)
-// كل مستخدمة تعمل على مسودة واحدة نشطة في كل مرة، ويُحفظ معرّفها
-// في sessionStorage أثناء التنقل بين الصفحات.
+//
+// النموذج الحالي: كل شي محلي بمتصفح الجهاز (localStorage) من أول لحظة -
+// ما فيه أي اتصال بقوقل شيت وأنتِ تعبّين الأقسام. البيانات تبقى محفوظة
+// بجهازك لين تضغطين "إصدار التقرير": وقتها بس يتولّد ملف PDF ويترفع
+// لقوقل شيت (سطر واحد فيه رابط الـ PDF)، وهذا هو الشيء الوحيد اللي
+// يوصل الشيت فعليًا. البيانات المحلية ما تنمسح تلقائيًا بعد الإصدار -
+// تبقى موجودة لين تضغطين "مسح المحتوى" بنفسك لبدء تقرير جديد.
 
 import { callApi } from "./api-config.js";
 
-const SESSION_KEY = "furqan_active_report_id";
+const ACTIVE_REPORT_KEY = "furqan_active_report_id";
 const PROFILE_KEY = "furqan_profile";
-
-// تخزين مؤقت (بذاكرة الصفحة فقط) لآخر تقرير جلبناه، حتى لا نطلب نفس
-// البيانات من الخادم مرتين بنفس تحميل الصفحة (getOrCreateDraftReport ثم
-// loadReport) - هذا وحده يقلل تقريبًا نصف زمن انتظار فتح كل صفحة.
-let _cachedReport = null;
+const LOCAL_PREFIX = "furqan_local_report_";
 
 function currentUsername() {
   try {
@@ -23,52 +23,57 @@ function currentUsername() {
   }
 }
 
-// تُرجع معرّف مسودة نشطة للمستخدمة الحالية، أو تُنشئ واحدة جديدة إن لم توجد
+function localKey(reportId) {
+  return LOCAL_PREFIX + reportId;
+}
+
+function getLocalReport_(reportId) {
+  if (!reportId) return null;
+  try {
+    const raw = localStorage.getItem(localKey(reportId));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setLocalReport_(reportId, report) {
+  try {
+    localStorage.setItem(localKey(reportId), JSON.stringify(report));
+  } catch (e) {
+    console.error("تعذّر الحفظ المحلي:", e);
+  }
+}
+
+function newReportId_() {
+  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  // احتياط للمتصفحات القديمة جدًا
+  return "r" + Date.now() + "_" + Math.random().toString(36).slice(2);
+}
+
+// تُرجع معرّف مسودة نشطة للمستخدمة الحالية على هذا الجهاز، أو تُنشئ
+// واحدة جديدة إن لم توجد - كله محليًا وفوري بدون أي اتصال بالشبكة.
 export async function getOrCreateDraftReport(profile) {
-  const cached = sessionStorage.getItem(SESSION_KEY);
-  if (cached && _cachedReport && _cachedReport.id === cached) {
-    // نفس التقرير موجود بذاكرة الصفحة من قبل بهذا التحميل - ما نحتاج طلب جديد
-    return cached;
+  const active = localStorage.getItem(ACTIVE_REPORT_KEY);
+  if (active && getLocalReport_(active)) {
+    return active;
   }
 
-  const res = await callApi("getOrCreateReport", { username: profile.username });
-  if (!res.ok) throw new Error(res.error || "تعذّر إنشاء/جلب التقرير");
-
-  // تأكيد إضافي: التقرير يخص نفس المستخدمة الحالية فعلاً
-  // (يمنع ظهور مسودة موظفة أخرى عند تبديل الحسابات بنفس الجهاز)
-  if (String(res.report.ownerUsername).trim().toLowerCase() !== String(profile.username).trim().toLowerCase()) {
-    throw new Error("تعارض في بيانات الجلسة، سجّلي خروج ودخول من جديد");
-  }
-
-  sessionStorage.setItem(SESSION_KEY, res.reportId);
-  _cachedReport = res.report;
-  return res.reportId;
+  const id = newReportId_();
+  setLocalReport_(id, { id, ownerUsername: profile.username, status: "مسودة" });
+  localStorage.setItem(ACTIVE_REPORT_KEY, id);
+  return id;
 }
 
 export async function loadReport(reportId) {
-  if (_cachedReport && _cachedReport.id === reportId) {
-    return _cachedReport;
-  }
-  const res = await callApi("getReport", { reportId });
-  if (!res.ok) return null;
-  _cachedReport = res.report;
-  return res.report;
+  return getLocalReport_(reportId);
 }
 
-// حفظ بيانات قسم واحد (البيانات الأساسية / الأهداف / المؤشرات...)
+// حفظ بيانات قسم واحد - محليًا فقط، فوري وبدون شبكة
 export async function saveSection(reportId, sectionKey, data) {
-  const res = await callApi("saveSection", {
-    reportId,
-    sectionKey,
-    data: JSON.stringify(data),
-    username: currentUsername()
-  });
-  if (!res.ok) throw new Error(res.error || "تعذّر الحفظ");
-
-  // نحدّث النسخة المخزّنة بذاكرة الصفحة حتى تبقى متوافقة مع آخر حفظ
-  if (_cachedReport && _cachedReport.id === reportId) {
-    _cachedReport[sectionKey] = data;
-  }
+  const report = getLocalReport_(reportId) || { id: reportId, ownerUsername: currentUsername(), status: "مسودة" };
+  report[sectionKey] = data;
+  setLocalReport_(reportId, report);
 }
 
 // نفس saveSection - تُستخدم للأقسام القابلة للتكرار (مصفوفات) مثل المؤشرات
@@ -76,7 +81,30 @@ export async function saveArraySection(reportId, sectionKey, arrayData) {
   return saveSection(reportId, sectionKey, arrayData);
 }
 
-export function clearActiveReport() {
-  sessionStorage.removeItem(SESSION_KEY);
-  _cachedReport = null;
+// إصدار التقرير: يستقبل ملف PDF (مولَّد بالمتصفح بصفحة reports/print-report.html)
+// ويرفعه لقوقل شيت كملف واحد فقط، ثم يسجّل رابطه بسطر بشيت "التقارير".
+// لا يمسح أي بيانات محلية - البيانات تبقى كما هي لين تُمسح يدويًا.
+export async function issueReport(reportId, pdfBase64, fileName) {
+  const report = getLocalReport_(reportId);
+  if (!report) throw new Error("لا توجد بيانات محفوظة لهذا التقرير");
+
+  const res = await callApi("uploadReportPdf", {
+    reportId,
+    username: currentUsername(),
+    pdfBase64,
+    fileName: fileName || "تقرير.pdf"
+  });
+  if (!res.ok) throw new Error(res.error || "تعذّر رفع التقرير");
+  return res; // { ok, pdfUrl }
+}
+
+// مسح المحتوى المحلي يدويًا (لبدء تقرير جديد من الصفر) - إجراء مقصود من المستخدمة فقط
+export function clearLocalReport(reportId) {
+  try { localStorage.removeItem(localKey(reportId)); } catch (e) { /* تجاهل */ }
+  const active = localStorage.getItem(ACTIVE_REPORT_KEY);
+  if (active === reportId) localStorage.removeItem(ACTIVE_REPORT_KEY);
+}
+
+export function hasLocalDraft(reportId) {
+  return !!getLocalReport_(reportId);
 }

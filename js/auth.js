@@ -48,7 +48,9 @@ export async function login(username, password) {
 // تسجيل الخروج
 export function logout() {
   sessionStorage.removeItem(PROFILE_KEY);
-  sessionStorage.removeItem("furqan_active_report_id");
+  // ملاحظة: لا نمسح مسودة التقرير المحفوظة محليًا عند الخروج - تبقى
+  // موجودة بجهازك وتقدرين تكملينها بعد الدخول من جديد، لين تمسحينها
+  // بنفسك عن طريق "مسح المحتوى" فقط.
   window.location.href = loginPageUrl();
 }
 

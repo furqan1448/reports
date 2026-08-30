@@ -15,9 +15,19 @@
 <div id="topbar-mount"></div>
 
 <div class="page-wrap">
-  <div class="page-header">
-    <h2>نموذج توثيق الأداء</h2>
-    <p>اختاري القسم الذي تريدين تعبئته أو مراجعته. يتم حفظ البيانات تلقائيًا في مسودة التقرير الحالية.</p>
+  <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div>
+      <h2>نموذج توثيق الأداء</h2>
+      <p>اختاري القسم الذي تريدين تعبئته أو مراجعته. يتم حفظ البيانات فورًا على جهازك، وترتفع لقوقل شيت كملف PDF واحد عند الإصدار.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button type="button" class="btn-add" id="clearBtn" style="width:auto; padding:12px 20px;">
+        <i class="fa-solid fa-eraser"></i> مسح المحتوى (تقرير جديد)
+      </button>
+      <a href="reports/print-report.html" class="btn-primary" style="width:auto; padding:12px 28px; white-space:nowrap; text-decoration:none; display:inline-flex; align-items:center; gap:8px;" id="issueBtn">
+        <i class="fa-solid fa-paper-plane"></i> معاينة وإصدار التقرير
+      </a>
+    </div>
   </div>
 
   <div class="cards-grid" id="cardsGrid"></div>
@@ -27,11 +37,22 @@
   import { requireAuth } from "./js/auth.js";
   import { renderTopbar } from "./js/components/topbar.js";
   import { SECTIONS } from "./js/components/sections-config.js";
+  import { getOrCreateDraftReport, clearLocalReport } from "./js/report-state.js";
 
-  requireAuth((profile) => {
+  let reportId;
+
+  requireAuth(async (profile) => {
     renderTopbar(profile, { homeHref: "dashboard.html" });
     renderCards();
+    reportId = await getOrCreateDraftReport(profile);
+    document.getElementById("clearBtn").addEventListener("click", onClear);
   });
+
+  function onClear() {
+    if (!confirm("هل أنتِ متأكدة من مسح كل بيانات التقرير الحالي من هذا الجهاز؟ لا يمكن التراجع عن هذا الإجراء.")) return;
+    clearLocalReport(reportId);
+    window.location.reload();
+  }
 
   function renderCards() {
     const grid = document.getElementById("cardsGrid");
