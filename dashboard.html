@@ -1,0 +1,49 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم | نظام توثيق الأداء - فرقان</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<div id="topbar-mount"></div>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h2>نموذج توثيق الأداء</h2>
+    <p>اختاري القسم الذي تريدين تعبئته أو مراجعته. يتم حفظ البيانات تلقائيًا في مسودة التقرير الحالية.</p>
+  </div>
+
+  <div class="cards-grid" id="cardsGrid"></div>
+</div>
+
+<script type="module">
+  import { requireAuth } from "./js/auth.js";
+  import { renderTopbar } from "./js/components/topbar.js";
+  import { SECTIONS } from "./js/components/sections-config.js";
+
+  requireAuth((profile) => {
+    renderTopbar(profile, { homeHref: "dashboard.html" });
+    renderCards();
+  });
+
+  function renderCards() {
+    const grid = document.getElementById("cardsGrid");
+    // بهذه المرحلة المبسطة: نعرض بس الأقسام الجاهزة (enabled !== false)
+    grid.innerHTML = SECTIONS.filter(s => s.enabled !== false).map((s, i) => `
+      <a class="section-card" href="${s.page}" data-key="${s.key}">
+        <div class="icon-box"><i class="fa-solid ${s.icon}"></i></div>
+        <h3>${s.title}</h3>
+        <p class="desc">${s.desc}</p>
+      </a>
+    `).join("");
+  }
+</script>
+</body>
+</html>

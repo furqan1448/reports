@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بيانات المركز | نظام توثيق الأداء - فرقان</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<style>
+  .form-section { background:#fff; border-radius:14px; padding:22px; box-shadow:var(--shadow-card); border:1px solid var(--border); margin-bottom:20px; }
+  .form-section h4 { color:var(--maroon-900); font-size:1.02rem; margin-bottom:16px; border-bottom:2px solid var(--gold-100); padding-bottom:10px; }
+  .extra-row { display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+  .extra-row .form-control { flex:1; }
+  .extra-row .btn-remove { background:none; border:none; color:var(--status-fail); font-size:1.1rem; cursor:pointer; padding:6px 10px; }
+  .form-actions { position: sticky; bottom: 0; background: rgba(250,247,242,0.95); backdrop-filter: blur(4px); padding: 14px 0; margin-top: 10px; }
+  .updated-note { font-size:.78rem; color:var(--text-muted); margin-top:-6px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+
+<div id="topbar-mount"></div>
+
+<div class="page-wrap" style="max-width:700px;">
+  <div class="page-header">
+    <h2><i class="fa-solid fa-building-columns"></i> بيانات المركز</h2>
+    <p>حدّثي أرقام مركزك. هذه البيانات تظهر فقط لإدارة التعليم.</p>
+  </div>
+  <div class="updated-note" id="updatedNote"></div>
+
+  <form id="centerForm">
+    <div class="form-section">
+      <h4>الأرقام الأساسية</h4>
+      <div class="row g-3">
+        <div class="col-md-12">
+          <label class="form-label">اسم المركز</label>
+          <input type="text" class="form-control" id="centerName">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">عدد المعلمات</label>
+          <input type="number" min="0" class="form-control" id="teachersCount">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">عدد الدارسات</label>
+          <input type="number" min="0" class="form-control" id="studentsCount">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">عدد الخاتمات</label>
+          <input type="number" min="0" class="form-control" id="completersCount">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h4>أرقام إضافية <span style="font-weight:400;font-size:.8rem;color:var(--text-muted);">(اختياري - أضيفي أي بيان جديد تحتاجينه لاحقًا)</span></h4>
+      <div id="extraList"></div>
+      <button type="button" class="btn-add" id="addExtraBtn"><i class="fa-solid fa-plus"></i> إضافة بيان جديد</button>
+    </div>
+
+    <div class="form-actions text-center">
+      <button type="submit" class="btn btn-primary" style="max-width:260px;padding:12px 30px;border:none;border-radius:10px;background:linear-gradient(90deg,var(--maroon-800),var(--maroon-600));color:#fff;font-weight:700;">
+        <i class="fa-solid fa-floppy-disk"></i> حفظ
+      </button>
+    </div>
+  </form>
+</div>
+
+<script type="module">
+  import { requireAuth } from "../js/auth.js";
+  import { renderTopbar } from "../js/components/topbar.js";
+  import { getOrCreateCenterDoc, saveCenterData } from "../js/firebase/center-data.js";
+  import { showSaveToast } from "../js/components/form-helpers.js";
+
+  let profileRef;
+  let extraCount = 0;
+
+  requireAuth(async (profile) => {
+    profileRef = profile;
+    renderTopbar(profile, { homeHref: "../dashboard.html" });
+    const data = await getOrCreateCenterDoc(profile);
+    fillForm(data);
+  });
+
+  function fillForm(data) {
+    document.getElementById("centerName").value = data.centerName || "";
+    document.getElementById("teachersCount").value = data.teachersCount ?? "";
+    document.getElementById("studentsCount").value = data.studentsCount ?? "";
+    document.getElementById("completersCount").value = data.completersCount ?? "";
+    (data.extraStats || []).forEach(row => addExtraRow(row.label, row.value));
+    if (data.updatedAt?.toDate) {
+      document.getElementById("updatedNote").textContent =
+        "آخر تحديث: " + data.updatedAt.toDate().toLocaleDateString("ar-SA");
+    }
+  }
+
+  function addExtraRow(label = "", value = "") {
+    extraCount++;
+    const id = "extra_" + extraCount;
+    const wrap = document.createElement("div");
+    wrap.className = "extra-row";
+    wrap.dataset.id = id;
+    wrap.innerHTML = `
+      <input type="text" class="form-control" placeholder="اسم البيان (مثال: عدد الحفظات الجديدات)" value="${escapeAttr(label)}" data-role="label">
+      <input type="text" class="form-control" placeholder="القيمة" value="${escapeAttr(value)}" data-role="value" style="max-width:140px;">
+      <button type="button" class="btn-remove" data-remove><i class="fa-solid fa-trash"></i></button>
+    `;
+    wrap.querySelector("[data-remove]").addEventListener("click", () => wrap.remove());
+    document.getElementById("extraList").appendChild(wrap);
+  }
+
+  function escapeAttr(v) {
+    return v === undefined || v === null ? "" : String(v).replace(/"/g, "&quot;");
+  }
+
+  document.getElementById("addExtraBtn").addEventListener("click", () => addExtraRow());
+
+  document.getElementById("centerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const extraStats = [...document.querySelectorAll(".extra-row")]
+      .map(row => ({
+        label: row.querySelector('[data-role="label"]').value.trim(),
+        value: row.querySelector('[data-role="value"]').value.trim()
+      }))
+      .filter(r => r.label);
+
+    const payload = {
+      centerName: document.getElementById("centerName").value.trim(),
+      teachersCount: numOrNull(document.getElementById("teachersCount").value),
+      studentsCount: numOrNull(document.getElementById("studentsCount").value),
+      completersCount: numOrNull(document.getElementById("completersCount").value),
+      extraStats
+    };
+
+    try {
+      await saveCenterData(profileRef, payload);
+      showSaveToast("تم حفظ بيانات المركز");
+    } catch (err) {
+      console.error(err);
+      showSaveToast("تعذر الحفظ، حاولي مجددًا", true);
+    }
+  });
+
+  function numOrNull(v) {
+    if (v === "" || v === null || v === undefined) return null;
+    const n = Number(v);
+    return isNaN(n) ? null : n;
+  }
+</script>
+</body>
+</html>

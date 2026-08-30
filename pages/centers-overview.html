@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بيانات المراكز | نظام توثيق الأداء - فرقان</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<style>
+  .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:22px; }
+  .stat-box { background:linear-gradient(135deg,var(--maroon-900),var(--maroon-700)); color:#fff; border-radius:14px; padding:16px; text-align:center; }
+  .stat-box .num { font-size:1.6rem; font-weight:800; color:var(--gold-400); }
+  .stat-box .lbl { font-size:.78rem; opacity:.9; margin-top:4px; }
+  table.centers-table { width:100%; border-collapse:collapse; background:#fff; border-radius:14px; overflow:hidden; box-shadow:var(--shadow-card); font-size:.88rem; }
+  table.centers-table th { background:var(--maroon-900); color:#fff; padding:10px; text-align:center; }
+  table.centers-table td { padding:10px; border-bottom:1px solid var(--border); text-align:center; }
+  .search-box { margin-bottom:18px; }
+</style>
+</head>
+<body>
+
+<div id="topbar-mount"></div>
+
+<div class="page-wrap" style="max-width:1000px;">
+  <div class="page-header">
+    <p><a href="../dashboard.html"><i class="fa-solid fa-arrow-right"></i> رجوع للوحة التحكم</a></p>
+    <h2><i class="fa-solid fa-building-columns"></i> بيانات المراكز</h2>
+    <p>أرقام كل المراكز مجمّعة في مكان واحد.</p>
+  </div>
+
+  <div class="stat-grid" id="statGrid"></div>
+
+  <input type="text" class="form-control search-box" id="searchBox" placeholder="ابحثي باسم المركز...">
+
+  <div style="overflow-x:auto;">
+    <table class="centers-table" id="centersTable">
+      <thead>
+        <tr>
+          <th>المركز</th>
+          <th>عدد المعلمات</th>
+          <th>عدد الدارسات</th>
+          <th>عدد الخاتمات</th>
+          <th>آخر تحديث</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from "../js/auth.js";
+  import { renderTopbar } from "../js/components/topbar.js";
+  import { listAllCenters } from "../js/firebase/center-data.js";
+  import { CAN_VIEW_CENTERS_OVERVIEW } from "../js/firebase/roles.js";
+
+  let allCenters = [];
+
+  requireAuth(async (profile) => {
+    // حماية إضافية على مستوى الواجهة (بالإضافة لقواعد Firestore نفسها)
+    if (!CAN_VIEW_CENTERS_OVERVIEW[profile.role]) {
+      window.location.href = "../dashboard.html";
+      return;
+    }
+    renderTopbar(profile, { homeHref: "../dashboard.html" });
+    allCenters = await listAllCenters();
+    renderStats();
+    render("");
+    document.getElementById("searchBox").addEventListener("input", (e) => render(e.target.value));
+  });
+
+  function renderStats() {
+    const totals = allCenters.reduce((acc, c) => {
+      acc.teachers += c.teachersCount || 0;
+      acc.students += c.studentsCount || 0;
+      acc.completers += c.completersCount || 0;
+      return acc;
+    }, { teachers: 0, students: 0, completers: 0 });
+
+    document.getElementById("statGrid").innerHTML = `
+      <div class="stat-box"><div class="num">${allCenters.length}</div><div class="lbl">عدد المراكز</div></div>
+      <div class="stat-box"><div class="num">${totals.teachers}</div><div class="lbl">إجمالي المعلمات</div></div>
+      <div class="stat-box"><div class="num">${totals.students}</div><div class="lbl">إجمالي الدارسات</div></div>
+      <div class="stat-box"><div class="num">${totals.completers}</div><div class="lbl">إجمالي الخاتمات</div></div>
+    `;
+  }
+
+  function render(filterText) {
+    const filtered = allCenters.filter(c =>
+      (c.centerName || "").toLowerCase().includes(filterText.toLowerCase())
+    );
+
+    if (filtered.length === 0) {
+      document.getElementById("tableBody").innerHTML =
+        `<tr><td colspan="5"><div class="empty-state"><i class="fa-solid fa-inbox"></i><p>لا توجد بيانات مراكز مطابقة.</p></div></td></tr>`;
+      return;
+    }
+
+    document.getElementById("tableBody").innerHTML = filtered.map(c => `
+      <tr>
+        <td>${c.centerName || "بدون اسم"}</td>
+        <td>${c.teachersCount ?? "-"}</td>
+        <td>${c.studentsCount ?? "-"}</td>
+        <td>${c.completersCount ?? "-"}</td>
+        <td>${c.updatedAt?.toDate ? c.updatedAt.toDate().toLocaleDateString("ar-SA") : "-"}</td>
+      </tr>
+      ${(c.extraStats || []).length ? `<tr><td colspan="5" style="text-align:right;background:#faf7f2;font-size:.8rem;color:var(--text-muted);">
+        ${c.extraStats.map(s => `${s.label}: <b>${s.value}</b>`).join(" &nbsp;·&nbsp; ")}
+      </td></tr>` : ""}
+    `).join("");
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>المراجعة والاعتماد | نظام توثيق الأداء - فرقان</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+
+<style>
+  .form-section {
+    background:#fff;
+    border-radius:14px;
+    padding:22px;
+    box-shadow:var(--shadow-card);
+    border:1px solid var(--border);
+    margin-bottom:20px;
+  }
+
+  .form-section h4 {
+    color:var(--maroon-900);
+    font-size:1.02rem;
+    margin-bottom:16px;
+    border-bottom:2px solid var(--gold-100);
+    padding-bottom:10px;
+  }
+
+  .checklist-item {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 0;
+    border-bottom:1px solid var(--border);
+  }
+
+  .checklist-item:last-child {
+    border-bottom:none;
+  }
+
+  .status-banner {
+    border-radius:14px;
+    padding:18px;
+    margin-bottom:20px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+
+  .status-banner.draft {
+    background:#f1f1f2;
+    color:var(--text-main);
+  }
+
+  .status-banner.submitted,
+  .status-banner.unit_approved,
+  .status-banner.dept_approved {
+    background:#fbf1dd;
+    color:var(--maroon-800);
+  }
+
+  .status-banner.approved {
+    background:#e8f6ee;
+    color:var(--status-done);
+  }
+
+  .status-banner.returned,
+  .status-banner.rejected {
+    background:#fdecea;
+    color:var(--status-fail);
+  }
+
+  .status-banner .icon {
+    font-size:1.8rem;
+  }
+
+  .timeline-item {
+    border-right:3px solid var(--gold-500);
+    padding:8px 16px;
+    margin-bottom:8px;
+    font-size:.85rem;
+  }
+
+  .timeline-item .meta {
+    color:var(--text-muted);
+    font-size:.76rem;
+  }
+
+  .reviewer-box {
+    background:#faf8f4;
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px;
+    margin-top:15px;
+  }
+
+  .reviewer-box label {
+    display:block;
+    font-weight:700;
+    margin-bottom:8px;
+  }
+
+  .reviewer-box input {
+    min-height:48px;
+  }
+
+  .reviewer-note {
+    color:var(--text-muted);
+    font-size:.78rem;
+    margin-top:7px;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="topbar-mount"></div>
+
+<div class="page-wrap" style="max-width:800px;">
+
+  <div class="page-header">
+
+    <p>
+      <a href="../dashboard.html">
+        <i class="fa-solid fa-arrow-right"></i>
+        رجوع للوحة التحكم
+      </a>
+    </p>
+
+    <h2>
+      <i class="fa-solid fa-signature"></i>
+      المراجعة والاعتماد
+    </h2>
+
+  </div>
+
+
+  <!-- حالة التقرير -->
+
+  <div
+    class="status-banner"
+    id="statusBanner"
+  ></div>
+
+
+  <!-- قائمة التحقق -->
+
+  <div class="form-section">
+
+    <h4>
+      قائمة التحقق قبل الإرسال
+    </h4>
+
+    <div id="checklistBox"></div>
+
+  </div>
+
+
+  <!-- إرسال التقرير للمراجع -->
+
+  <div
+    class="form-section"
+    id="submitBox"
+  >
+
+    <h4>
+      إرسال التقرير للمراجعة والاعتماد
+    </h4>
+
+    <p class="text-muted small">
+      بعد الإرسال، ينتقل التقرير إلى المراجع المحدد أدناه.
+      ويمكن للمراجع إعادة التقرير للتعديل إذا كانت هناك ملاحظات.
+    </p>
+
+
+    <div class="reviewer-box">
+
+      <label for="reviewerEmail">
+        البريد الإلكتروني للمراجع
+      </label>
+
+      <input
+        type="email"
+        id="reviewerEmail"
+        class="form-control"
+        placeholder="example@example.com"
+        autocomplete="email"
+      >
+
+      <div class="reviewer-note">
+        أدخلي البريد الإلكتروني للشخص المسؤول عن مراجعة التقرير واعتماده.
+      </div>
+
+    </div>
+
+
+    <button
+      type="button"
+      class="btn-primary"
+      id="submitBtn"
+      style="width:auto; padding:12px 32px; margin-top:15px;"
+    >
+
+      <i class="fa-solid fa-paper-plane"></i>
+
+      إرسال التقرير للمراجعة والاعتماد
+
+    </button>
+
+  </div>
+
+
+  <!-- سجل المراجعة -->
+
+  <div
+    class="form-section"
+    id="historyBox"
+    style="display:none;"
+  >
+
+    <h4>
+      سجل المراجعة
+    </h4>
+
+    <div id="historyList"></div>
+
+  </div>
+
+</div>
+
+
+<script type="module">
+
+  import {
+    requireAuth
+  } from "../js/auth.js";
+
+
+  import {
+    renderTopbar
+  } from "../js/components/topbar.js";
+
+
+  import {
+    getOrCreateDraftReport,
+    loadReport
+  } from "../js/report-state.js";
+
+
+  import {
+    submitForReview,
+    STATUS_LABELS_AR
+  } from "../js/firebase/workflow.js";
+
+
+  import {
+    showSaveToast
+  } from "../js/components/form-helpers.js";
+
+
+  import {
+    SECTIONS
+  } from "../js/components/sections-config.js";
+
+
+  let reportId = null;
+
+  let report = null;
+
+  let profileRef = null;
+
+
+  const STATUS_ICONS = {
+
+    draft:
+      "fa-file-pen",
+
+    submitted:
+      "fa-hourglass-half",
+
+    unit_approved:
+      "fa-hourglass-half",
+
+    dept_approved:
+      "fa-hourglass-half",
+
+    approved:
+      "fa-circle-check",
+
+    returned:
+      "fa-rotate-left",
+
+    rejected:
+      "fa-circle-xmark"
+
+  };
+
+
+  /*
+   * تحميل الصفحة
+   */
+
+  requireAuth(async (profile) => {
+
+    try {
+
+      profileRef = profile;
+
+
+      renderTopbar(
+        profile,
+        {
+          homeHref:
+            "../dashboard.html"
+        }
+      );
+
+
+      reportId =
+        await getOrCreateDraftReport(
+          profile
+        );
+
+
+      report =
+        await loadReport(
+          reportId
+        );
+
+
+      renderStatus();
+
+      renderChecklist();
+
+      renderHistory();
+
+
+      /*
+       * إذا كان هناك مراجع محفوظ مسبقًا،
+       * نعرض بريده تلقائيًا.
+       */
+
+      const reviewerEmailInput =
+        document.getElementById(
+          "reviewerEmail"
+        );
+
+
+      if (
+        reviewerEmailInput &&
+        report &&
+        report.reviewerEmail
+      ) {
+
+        reviewerEmailInput.value =
+          report.reviewerEmail;
+
+      }
+
+
+      const submitBtn =
+        document.getElementById(
+          "submitBtn"
+        );
+
+
+      submitBtn.addEventListener(
+        "click",
+        onSubmit
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "خطأ في تحميل صفحة المراجعة:",
+        error
+      );
+
+
+      showSaveToast(
+        "تعذر تحميل بيانات التقرير",
+        true
+      );
+
+    }
+
+  });
+
+
+  /*
+   * عرض حالة التقرير
+   */
+
+  function renderStatus() {
+
+    const status =
+      report?.status || "draft";
+
+
+    const banner =
+      document.getElementById(
+        "statusBanner"
+      );
+
+
+    const statusLabel =
+      STATUS_LABELS_AR[status] ||
+      "مسودة";
+
+
+    banner.className =
+      `status-banner ${status}`;
+
+
+    let description = "";
+
+
+    if (
+      status === "draft"
+    ) {
+
+      description =
+        "التقرير لا يزال مسودة، أكملي الأقسام ثم أرسليه للمراجعة.";
+
+    }
+
+
+    else if (
+      status === "submitted"
+    ) {
+
+      description =
+        report?.reviewerEmail
+
+          ? `تم إرسال التقرير للمراجعة إلى ${report.reviewerEmail}`
+
+          : "تم إرسال التقرير للمراجعة.";
+
+    }
+
+
+    else if (
+      status === "unit_approved"
+    ) {
+
+      description =
+        "تم اعتماد التقرير من المرحلة الأولى.";
+
+    }
+
+
+    else if (
+      status === "dept_approved"
+    ) {
+
+      description =
+        "تم اعتماد التقرير من المرحلة الثانية.";
+
+    }
+
+
+    else if (
+      status === "approved"
+    ) {
+
+      description =
+        "تم اعتماد التقرير نهائيًا.";
+
+    }
+
+
+    else if (
+      status === "returned"
+    ) {
+
+      description =
+        "أُعيد التقرير للتعديل.";
+
+    }
+
+
+    else if (
+      status === "rejected"
+    ) {
+
+      description =
+        "تم رفض التقرير.";
+
+    }
+
+
+    banner.innerHTML = `
+
+      <i class="fa-solid ${
+        STATUS_ICONS[status] ||
+        "fa-file"
+      } icon"></i>
+
+      <div>
+
+        <div style="font-weight:700;">
+
+          ${statusLabel}
+
+        </div>
+
+        <div class="small">
+
+          ${description}
+
+        </div>
+
+      </div>
+
+    `;
+
+
+    /*
+     * إظهار خانة الإرسال للمسودة
+     * أو التقرير المعاد للتعديل.
+     */
+
+    const submitBox =
+      document.getElementById(
+        "submitBox"
+      );
+
+
+    submitBox.style.display =
+
+      (
+        status === "draft" ||
+        status === "returned"
+      )
+
+        ? "block"
+
+        : "none";
+
+  }
+
+
+  /*
+   * قائمة التحقق
+   */
+
+  function renderChecklist() {
+
+    const box =
+      document.getElementById(
+        "checklistBox"
+      );
+
+
+    box.innerHTML =
+
+      SECTIONS
+        .map(section => {
+
+          const key =
+            sectionKeyToDataKey(
+              section.key
+            );
+
+
+          const value =
+            report?.[key];
+
+
+          const filled =
+
+            section.repeatable
+
+              ? (
+                  Array.isArray(value) &&
+                  value.length > 0
+                )
+
+              : (
+                  value &&
+                  typeof value === "object" &&
+                  Object.keys(value).length > 0
+                );
+
+
+          return `
+
+            <div class="checklist-item">
+
+              <i class="fa-solid ${
+                filled
+                  ? "fa-circle-check text-success"
+                  : "fa-circle text-muted"
+              }"></i>
+
+
+              <span>
+
+                ${section.title}
+
+              </span>
+
+
+              <span
+                class="ms-auto small ${
+                  filled
+                    ? "text-success"
+                    : "text-muted"
+                }"
+              >
+
+                ${
+                  filled
+                    ? "مكتمل"
+                    : "فارغ"
+                }
+
+              </span>
+
+            </div>
+
+          `;
+
+        })
+        .join("");
+
+  }
+
+
+  /*
+   * تحويل مفتاح القسم إلى اسم الحقل
+   */
+
+  function sectionKeyToDataKey(
+    key
+  ) {
+
+    const map = {
+
+      "basic-data":
+        "basicData",
+
+      "goals":
+        "goals",
+
+      "indicators":
+        "indicators",
+
+      "programs":
+        "programs",
+
+      "measurement-tools":
+        "measurementTools",
+
+      "results-analysis":
+        "resultsAnalysis",
+
+      "strengths":
+        "strengths",
+
+      "difficulties":
+        "difficulties",
+
+      "improvement-opportunities":
+        "improvementOpportunities",
+
+      "initiatives":
+        "initiatives",
+
+      "impact-stories":
+        "impactStories",
+
+      "recommendations":
+        "recommendations",
+
+      "next-period-plan":
+        "nextPeriodPlan",
+
+      "evidence":
+        "evidence",
+
+      "review-approval":
+        "reviewApproval"
+
+    };
+
+
+    return map[key] || key;
+
+  }
+
+
+  /*
+   * عرض سجل المراجعة
+   */
+
+  function renderHistory() {
+
+    const history =
+      report?.history || [];
+
+
+    if (
+      history.length === 0
+    ) {
+
+      return;
+
+    }
+
+
+    const historyBox =
+      document.getElementById(
+        "historyBox"
+      );
+
+
+    const historyList =
+      document.getElementById(
+        "historyList"
+      );
+
+
+    historyBox.style.display =
+      "block";
+
+
+    historyList.innerHTML =
+
+      history
+        .slice()
+        .reverse()
+        .map(historyItem => `
+
+          <div class="timeline-item">
+
+            <div>
+
+              ${
+                actionLabel(
+                  historyItem.action
+                )
+              }
+
+              ${
+                historyItem.reviewerEmail
+                  ? ` — المراجع: ${historyItem.reviewerEmail}`
+                  : ""
+              }
+
+              ${
+                historyItem.note
+                  ? ` — ${historyItem.note}`
+                  : ""
+              }
+
+            </div>
+
+
+            <div class="meta">
+
+              ${historyItem.by || ""}
+
+              ·
+
+              ${
+                historyItem.at
+
+                  ? new Date(
+                      historyItem.at
+                    ).toLocaleString(
+                      "ar-SA"
+                    )
+
+                  : ""
+              }
+
+            </div>
+
+          </div>
+
+        `)
+        .join("");
+
+  }
+
+
+  /*
+   * أسماء الإجراءات بالعربي
+   */
+
+  function actionLabel(
+    action
+  ) {
+
+    return {
+
+      submit:
+        "تم إرسال التقرير للمراجعة",
+
+      approve:
+        "تم اعتماد التقرير",
+
+      return:
+        "أُعيد التقرير للتعديل",
+
+      reject:
+        "تم رفض التقرير"
+
+    }[action] || action;
+
+  }
+
+
+  /*
+   * إرسال التقرير للمراجع
+   */
+
+  async function onSubmit() {
+
+    const reviewerEmailInput =
+      document.getElementById(
+        "reviewerEmail"
+      );
+
+
+    const reviewerEmail =
+      reviewerEmailInput
+
+        ? reviewerEmailInput.value
+            .trim()
+            .toLowerCase()
+
+        : "";
+
+
+    /*
+     * التأكد من إدخال البريد
+     */
+
+    if (
+      !reviewerEmail
+    ) {
+
+      showSaveToast(
+        "فضلاً أدخلي البريد الإلكتروني للمراجع",
+        true
+      );
+
+
+      reviewerEmailInput?.focus();
+
+
+      return;
+
+    }
+
+
+    /*
+     * التحقق من صحة البريد
+     */
+
+    const emailPattern =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+
+    if (
+      !emailPattern.test(
+        reviewerEmail
+      )
+    ) {
+
+      showSaveToast(
+        "تأكدي من صحة البريد الإلكتروني",
+        true
+      );
+
+
+      reviewerEmailInput?.focus();
+
+
+      return;
+
+    }
+
+
+    const submitBtn =
+      document.getElementById(
+        "submitBtn"
+      );
+
+
+    try {
+
+      /*
+       * منع الضغط أكثر من مرة
+       */
+
+      submitBtn.disabled =
+        true;
+
+
+      submitBtn.innerHTML = `
+
+        <i class="fa-solid fa-spinner fa-spin"></i>
+
+        جاري إرسال التقرير...
+
+      `;
+
+
+      /*
+       * إرسال التقرير
+       * مع البريد الإلكتروني للمراجع
+       */
+
+      await submitForReview(
+        reportId,
+        profileRef,
+        reviewerEmail
+      );
+
+
+      /*
+       * إعادة تحميل البيانات
+       */
+
+      report =
+        await loadReport(
+          reportId
+        );
+
+
+      renderStatus();
+
+      renderHistory();
+
+
+      showSaveToast(
+        "تم إرسال التقرير للمراجع بنجاح"
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "خطأ أثناء إرسال التقرير:",
+        error
+      );
+
+
+      showSaveToast(
+        "تعذر إرسال التقرير، حاولي مجددًا",
+        true
+      );
+
+
+    } finally {
+
+      submitBtn.disabled =
+        false;
+
+
+      submitBtn.innerHTML = `
+
+        <i class="fa-solid fa-paper-plane"></i>
+
+        إرسال التقرير للمراجعة والاعتماد
+
+      `;
+
+    }
+
+  }
+
+</script>
+
+</body>
+</html>

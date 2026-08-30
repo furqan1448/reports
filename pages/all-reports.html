@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+>
+
+<title>
+  التقارير المحفوظة | نظام توثيق الأداء - فرقان
+</title>
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
+>
+
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+>
+
+<link
+  href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap"
+  rel="stylesheet"
+>
+
+<link
+  rel="stylesheet"
+  href="../css/main.css"
+>
+
+
+<style>
+
+.report-row {
+
+  background:#fff;
+
+  border:1px solid var(--border);
+
+  border-radius:14px;
+
+  padding:18px;
+
+  margin-bottom:14px;
+
+  box-shadow:var(--shadow-card);
+
+  cursor:pointer;
+
+  transition:.2s;
+
+  display:flex;
+
+  justify-content:space-between;
+
+  align-items:center;
+
+  gap:15px;
+
+  flex-wrap:wrap;
+
+}
+
+
+.report-row:hover {
+
+  box-shadow:var(--shadow-card-hover);
+
+  transform:translateY(-2px);
+
+}
+
+
+.report-info {
+
+  flex:1;
+
+  min-width:250px;
+
+}
+
+
+.report-row .title {
+
+  font-weight:700;
+
+  color:var(--maroon-900);
+
+  font-size:1rem;
+
+  margin-bottom:7px;
+
+}
+
+
+.report-row .meta {
+
+  font-size:.82rem;
+
+  color:var(--text-muted);
+
+  line-height:1.8;
+
+}
+
+
+.report-row .reviewer {
+
+  font-size:.78rem;
+
+  color:var(--maroon-800);
+
+  margin-top:5px;
+
+}
+
+
+.status-pill {
+
+  white-space:nowrap;
+
+}
+
+
+.search-box {
+
+  margin-bottom:20px;
+
+}
+
+
+.filter-box {
+
+  background:#fff;
+
+  border:1px solid var(--border);
+
+  border-radius:14px;
+
+  padding:15px;
+
+  margin-bottom:20px;
+
+  box-shadow:var(--shadow-card);
+
+}
+
+
+.filter-buttons {
+
+  display:flex;
+
+  gap:8px;
+
+  flex-wrap:wrap;
+
+}
+
+
+.filter-btn {
+
+  border:1px solid var(--border);
+
+  background:#fff;
+
+  border-radius:9px;
+
+  padding:8px 14px;
+
+  cursor:pointer;
+
+  font-family:inherit;
+
+}
+
+
+.filter-btn.active {
+
+  background:var(--maroon-900);
+
+  color:#fff;
+
+  border-color:var(--maroon-900);
+
+}
+
+
+.report-count {
+
+  font-size:.85rem;
+
+  color:var(--text-muted);
+
+  margin-top:12px;
+
+}
+
+
+.empty-state {
+
+  background:#fff;
+
+  border:1px dashed var(--border);
+
+  border-radius:14px;
+
+  padding:45px 20px;
+
+  text-align:center;
+
+  color:var(--text-muted);
+
+}
+
+
+.empty-state i {
+
+  font-size:2rem;
+
+  margin-bottom:12px;
+
+}
+
+
+.loading-box {
+
+  background:#fff;
+
+  border-radius:14px;
+
+  border:1px solid var(--border);
+
+}
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div id="topbar-mount"></div>
+
+
+<div
+  class="page-wrap"
+  style="max-width:950px;"
+>
+
+
+  <div class="page-header">
+
+    <p>
+
+      <a href="../dashboard.html">
+
+        <i class="fa-solid fa-arrow-right"></i>
+
+        رجوع للوحة التحكم
+
+      </a>
+
+    </p>
+
+
+    <h2>
+
+      <i class="fa-solid fa-folder-open"></i>
+
+      التقارير المحفوظة
+
+    </h2>
+
+
+    <p>
+
+      جميع التقارير التي تملكين صلاحية الاطلاع عليها.
+
+    </p>
+
+  </div>
+
+
+
+  <!-- البحث -->
+
+  <input
+
+    type="text"
+
+    class="form-control search-box"
+
+    id="searchBox"
+
+    placeholder="ابحثي باسم الوحدة أو القسم أو معدة التقرير..."
+
+  >
+
+
+
+  <!-- الفلاتر -->
+
+  <div class="filter-box">
+
+    <div class="filter-buttons">
+
+      <button
+        type="button"
+        class="filter-btn active"
+        data-filter="all"
+      >
+        الكل
+      </button>
+
+
+      <button
+        type="button"
+        class="filter-btn"
+        data-filter="draft"
+      >
+        المسودات
+      </button>
+
+
+      <button
+        type="button"
+        class="filter-btn"
+        data-filter="submitted"
+      >
+        بانتظار المراجعة
+      </button>
+
+
+      <button
+        type="button"
+        class="filter-btn"
+        data-filter="approved"
+      >
+        المعتمدة
+      </button>
+
+
+      <button
+        type="button"
+        class="filter-btn"
+        data-filter="returned"
+      >
+        المعادة للتعديل
+      </button>
+
+    </div>
+
+
+    <div
+      class="report-count"
+      id="reportCount"
+    ></div>
+
+  </div>
+
+
+
+  <!-- قائمة التقارير -->
+
+  <div id="reportsList">
+
+    <div class="loading-box text-center p-5">
+
+      <i
+        class="fa-solid fa-spinner fa-spin fa-2x"
+      ></i>
+
+      <div class="mt-3">
+
+        جاري تحميل التقارير...
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+</div>
+
+
+
+<script type="module">
+
+
+import {
+
+  requireAuth
+
+} from "../js/auth.js";
+
+
+import {
+
+  renderTopbar
+
+} from "../js/components/topbar.js";
+
+
+import {
+
+  db
+
+} from "../js/firebase/config.js";
+
+
+import {
+
+  collection,
+
+  getDocs,
+
+  query,
+
+  where
+
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+
+import {
+
+  STATUS_LABELS_AR
+
+} from "../js/firebase/workflow.js";
+
+
+
+/*
+========================================
+متغيرات الصفحة
+========================================
+*/
+
+
+let allReports = [];
+
+let currentFilter = "all";
+
+let currentProfile = null;
+
+
+
+/*
+========================================
+الأدوار التي يسمح لها برؤية جميع التقارير
+========================================
+*/
+
+
+const FULL_ACCESS_ROLES = [
+
+  "education_admin",
+
+  "admin"
+
+];
+
+
+
+/*
+========================================
+تشغيل الصفحة
+========================================
+*/
+
+
+requireAuth(
+
+  async (profile) => {
+
+    try {
+
+      currentProfile = profile;
+
+
+      renderTopbar(
+
+        profile,
+
+        {
+
+          homeHref:
+            "../dashboard.html"
+
+        }
+
+      );
+
+
+      await loadReports();
+
+
+      setupSearch();
+
+
+      setupFilters();
+
+
+    }
+
+    catch (error) {
+
+      console.error(
+
+        "خطأ في تحميل التقارير:",
+
+        error
+
+      );
+
+
+      document
+        .getElementById("reportsList")
+        .innerHTML = `
+
+          <div class="empty-state">
+
+            <i class="fa-solid fa-triangle-exclamation"></i>
+
+            <p>
+
+              تعذر تحميل التقارير.
+
+            </p>
+
+            <small>
+
+              ${error.message || ""}
+
+            </small>
+
+          </div>
+
+        `;
+
+    }
+
+  }
+
+);
+
+
+
+/*
+========================================
+تحميل التقارير
+========================================
+*/
+
+async function loadReports() {
+
+
+  const reportsRef =
+    collection(
+      db,
+      "reports"
+    );
+
+
+  /*
+   * الإدارة العليا تشاهد جميع التقارير
+   */
+
+  if (
+
+    FULL_ACCESS_ROLES.includes(
+      currentProfile?.role
+    )
+
+  ) {
+
+    const snap =
+      await getDocs(
+        reportsRef
+      );
+
+
+    allReports =
+      snap.docs.map(
+
+        d => ({
+
+          id:
+            d.id,
+
+          ...d.data()
+
+        })
+
+      );
+
+  }
+
+
+  else {
+
+
+    /*
+     * نجيب تقارير صاحبة الحساب
+     */
+
+    const ownedQuery =
+      query(
+
+        reportsRef,
+
+        where(
+
+          "ownerUid",
+
+          "==",
+
+          currentProfile.uid
+
+        )
+
+      );
+
+
+    const ownedSnap =
+      await getDocs(
+        ownedQuery
+      );
+
+
+    /*
+     * ونجيب التقارير التي أُرسلت
+     * إلى البريد الإلكتروني للحساب
+     */
+
+    const email =
+      String(
+
+        currentProfile.email || ""
+
+      )
+        .trim()
+        .toLowerCase();
+
+
+    let reviewerSnap = null;
+
+
+    if (email) {
+
+      const reviewerQuery =
+        query(
+
+          reportsRef,
+
+          where(
+
+            "reviewerEmail",
+
+            "==",
+
+            email
+
+          )
+
+        );
+
+
+      reviewerSnap =
+        await getDocs(
+          reviewerQuery
+        );
+
+    }
+
+
+    /*
+     * دمج النتائج بدون تكرار
+     */
+
+    const map =
+      new Map();
+
+
+    ownedSnap.docs.forEach(
+
+      d => {
+
+        map.set(
+
+          d.id,
+
+          {
+
+            id:
+              d.id,
+
+            ...d.data()
+
+          }
+
+        );
+
+      }
+
+    );
+
+
+    if (reviewerSnap) {
+
+      reviewerSnap.docs.forEach(
+
+        d => {
+
+          map.set(
+
+            d.id,
+
+            {
+
+              id:
+                d.id,
+
+              ...d.data()
+
+            }
+
+          );
+
+        }
+
+      );
+
+    }
+
+
+    allReports =
+      Array.from(
+        map.values()
+      );
+
+  }
+
+
+  /*
+   * ترتيب الأحدث أولًا
+   */
+
+  allReports.sort(
+
+    (a, b) =>
+
+      (
+        b.updatedAt?.toMillis?.() ||
+        0
+      )
+
+      -
+
+      (
+        a.updatedAt?.toMillis?.() ||
+        0
+      )
+
+  );
+
+
+  render();
+
+}
+
+
+
+/*
+========================================
+البحث
+========================================
+*/
+
+function setupSearch() {
+
+
+  document
+    .getElementById("searchBox")
+    .addEventListener(
+
+      "input",
+
+      () => {
+
+        render();
+
+      }
+
+    );
+
+}
+
+
+
+/*
+========================================
+الفلاتر
+========================================
+*/
+
+function setupFilters() {
+
+
+  document
+    .querySelectorAll(".filter-btn")
+    .forEach(
+
+      button => {
+
+        button.addEventListener(
+
+          "click",
+
+          () => {
+
+            document
+              .querySelectorAll(
+                ".filter-btn"
+              )
+              .forEach(
+
+                btn =>
+                  btn.classList.remove(
+                    "active"
+                  )
+
+              );
+
+
+            button.classList.add(
+              "active"
+            );
+
+
+            currentFilter =
+              button.dataset.filter;
+
+
+            render();
+
+          }
+
+        );
+
+      }
+
+    );
+
+}
+
+
+
+/*
+========================================
+عرض التقارير
+========================================
+*/
+
+function render() {
+
+
+  const list =
+    document.getElementById(
+      "reportsList"
+    );
+
+
+  const search =
+    document
+      .getElementById(
+        "searchBox"
+      )
+      .value
+      .trim()
+      .toLowerCase();
+
+
+  let filtered =
+    allReports.filter(
+
+      report => {
+
+
+        /*
+         * فلترة الحالة
+         */
+
+        if (
+
+          currentFilter !== "all"
+
+        ) {
+
+
+          if (
+
+            currentFilter ===
+            "returned"
+
+          ) {
+
+            if (
+              report.status !==
+              "returned"
+            ) {
+
+              return false;
+
+            }
+
+          }
+
+          else {
+
+            if (
+
+              report.status !==
+              currentFilter
+
+            ) {
+
+              return false;
+
+            }
+
+          }
+
+        }
+
+
+        /*
+         * البحث
+         */
+
+        if (!search) {
+
+          return true;
+
+        }
+
+
+        const bd =
+          report.basicData || {};
+
+
+        const haystack = `
+
+          ${bd.unitName || ""}
+
+          ${bd.departmentName || ""}
+
+          ${bd.preparerName || ""}
+
+          ${report.ownerName || ""}
+
+          ${report.reviewerEmail || ""}
+
+        `.toLowerCase();
+
+
+        return haystack.includes(
+          search
+        );
+
+      }
+
+    );
+
+
+  /*
+   * عدد النتائج
+   */
+
+  document
+    .getElementById(
+      "reportCount"
+    )
+    .textContent =
+
+      `عدد التقارير: ${filtered.length}`;
+
+
+  /*
+   * لا توجد نتائج
+   */
+
+  if (
+    filtered.length === 0
+  ) {
+
+    list.innerHTML = `
+
+      <div class="empty-state">
+
+        <i class="fa-solid fa-folder-open"></i>
+
+        <p>
+
+          لا توجد تقارير مطابقة.
+
+        </p>
+
+      </div>
+
+    `;
+
+
+    return;
+
+  }
+
+
+  /*
+   * رسم التقارير
+   */
+
+  list.innerHTML =
+
+    filtered
+      .map(
+
+        report => {
+
+          const bd =
+            report.basicData ||
+            {};
+
+
+          const status =
+            report.status ||
+            "draft";
+
+
+          const statusLabel =
+            STATUS_LABELS_AR[
+              status
+            ] ||
+            status;
+
+
+          const reviewer =
+            report.reviewerEmail ||
+            "";
+
+
+          const updatedAt =
+            formatDate(
+              report.updatedAt
+            );
+
+
+          return `
+
+            <div
+
+              class="report-row"
+
+              data-id="${escapeHtml(
+                report.id
+              )}"
+
+            >
+
+
+              <div class="report-info">
+
+
+                <div class="title">
+
+                  ${
+                    escapeHtml(
+                      bd.unitName ||
+                      bd.departmentName ||
+                      "بدون اسم وحدة"
+                    )
+                  }
+
+                </div>
+
+
+                <div class="meta">
+
+                  <strong>
+                    معدة التقرير:
+                  </strong>
+
+                  ${
+                    escapeHtml(
+                      bd.preparerName ||
+                      report.ownerName ||
+                      "-"
+                    )
+                  }
+
+                  <br>
+
+
+                  <strong>
+                    الفترة:
+                  </strong>
+
+                  ${
+                    escapeHtml(
+                      bd.periodType ||
+                      "-"
+                    )
+                  }
+
+                  ${
+                    bd.hijriYear
+                      ? " " +
+                        escapeHtml(
+                          bd.hijriYear
+                        )
+                      : ""
+                  }
+
+
+                  <br>
+
+
+                  <strong>
+                    آخر تحديث:
+                  </strong>
+
+                  ${updatedAt}
+
+
+                  <br>
+
+
+                  <strong>
+                    المؤشرات:
+                  </strong>
+
+                  ${
+                    Array.isArray(
+                      report.indicators
+                    )
+                      ? report.indicators.length
+                      : 0
+                  }
+
+
+                  ·
+
+
+                  <strong>
+                    البرامج:
+                  </strong>
+
+                  ${
+                    Array.isArray(
+                      report.programs
+                    )
+                      ? report.programs.length
+                      : 0
+                  }
+
+                </div>
+
+
+                ${
+                  reviewer
+
+                    ? `
+
+                      <div class="reviewer">
+
+                        <i class="fa-solid fa-envelope"></i>
+
+                        المراجع:
+
+                        ${escapeHtml(
+                          reviewer
+                        )}
+
+                      </div>
+
+                    `
+
+                    : ""
+
+                }
+
+
+              </div>
+
+
+              <div>
+
+                <span
+
+                  class="status-pill ${statusClass(
+                    status
+                  )}"
+
+                >
+
+                  ${escapeHtml(
+                    statusLabel
+                  )}
+
+                </span>
+
+
+                <div
+                  class="text-muted small mt-2"
+                  style="text-align:center;"
+                >
+
+                  <i class="fa-solid fa-eye"></i>
+
+                  الاطلاع
+
+                </div>
+
+              </div>
+
+
+            </div>
+
+          `;
+
+        }
+
+      )
+
+      .join("");
+
+
+  /*
+   * ربط الضغط بفتح التقرير
+   */
+
+  list
+    .querySelectorAll(
+      ".report-row"
+    )
+    .forEach(
+
+      row => {
+
+        row.addEventListener(
+
+          "click",
+
+          () => {
+
+            const id =
+              row.getAttribute(
+                "data-id"
+              );
+
+
+            if (!id) {
+
+              return;
+
+            }
+
+
+            window.location.href =
+
+              `../reports/print-report.html?id=${encodeURIComponent(
+                id
+              )}`;
+
+          }
+
+        );
+
+      }
+
+    );
+
+}
+
+
+
+/*
+========================================
+ألوان الحالة
+========================================
+*/
+
+function statusClass(
+  status
+) {
+
+
+  if (
+    status ===
+    "approved"
+  ) {
+
+    return "done";
+
+  }
+
+
+  if (
+
+    status === "returned" ||
+
+    status === "rejected"
+
+  ) {
+
+    return "fail";
+
+  }
+
+
+  if (
+    status === "draft"
+  ) {
+
+    return "none";
+
+  }
+
+
+  return "warn";
+
+}
+
+
+
+/*
+========================================
+تنسيق التاريخ
+========================================
+*/
+
+function formatDate(
+  timestamp
+) {
+
+
+  if (
+    !timestamp
+  ) {
+
+    return "-";
+
+  }
+
+
+  try {
+
+    const date =
+      timestamp.toDate
+        ? timestamp.toDate()
+        : new Date(
+            timestamp
+          );
+
+
+    return date.toLocaleString(
+      "ar-SA",
+      {
+
+        year:
+          "numeric",
+
+        month:
+          "2-digit",
+
+        day:
+          "2-digit",
+
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit"
+
+      }
+
+    );
+
+  }
+
+  catch {
+
+    return "-";
+
+  }
+
+}
+
+
+
+/*
+========================================
+حماية النصوص قبل عرضها
+========================================
+*/
+
+function escapeHtml(
+  value
+) {
+
+
+  return String(
+    value ?? ""
+  )
+
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+
+    .replace(
+      /</g,
+      "&lt;"
+    )
+
+    .replace(
+      />/g,
+      "&gt;"
+    )
+
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+
+}
+
+
+</script>
+
+
+</body>
+
+</html>
