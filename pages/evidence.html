@@ -15,10 +15,6 @@
   .btn-remove { background:transparent; border:none; color:var(--status-fail); cursor:pointer; font-size:.9rem; }
   .field-label { font-size:.82rem; font-weight:600; margin-bottom:4px; display:block; }
   .form-actions { position: sticky; bottom: 0; background: rgba(250,247,242,0.95); backdrop-filter: blur(4px); padding: 14px 0; margin-top: 10px; }
-  .upload-status { font-size:.78rem; margin-top:6px; }
-  .upload-status.uploading { color: var(--status-near); }
-  .upload-status.done { color: var(--status-done); }
-  .upload-status.error { color: var(--status-fail); }
   .confidentiality-badge { font-size:.72rem; font-weight:700; padding:2px 9px; border-radius:999px; }
   .conf-public { background:#e8f6ee; color:var(--status-done); }
   .conf-internal { background:#fbf1dd; color:var(--status-near); }
@@ -33,7 +29,7 @@
   <div class="page-header">
     <p><a href="../dashboard.html"><i class="fa-solid fa-arrow-right"></i> رجوع للوحة التحكم</a></p>
     <h2><i class="fa-solid fa-paperclip"></i> الشواهد والمرفقات</h2>
-    <p>أرفقي الملفات الداعمة، أو ألصقي رابطًا خارجيًا مباشرة.</p>
+    <p>ارفعي الملف على Google Drive أو أي مكان مشابه، وألصقي رابط المشاركة هنا.</p>
   </div>
 
   <div id="evidenceContainer"></div>
@@ -53,8 +49,6 @@
 <script type="module">
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
-  import { storage } from "../js/firebase/config.js";
-  import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
   import { getOrCreateDraftReport, loadReport, saveArraySection } from "../js/report-state.js";
   import { showSaveToast } from "../js/components/form-helpers.js";
   import { RepeatableList } from "../js/components/repeatable-list.js";
@@ -84,11 +78,10 @@
       container,
       itemLabel: "شاهد",
       itemFactory: () => ({
-        title: "", type: "مستند", relatedSection: "", fileUrl: "",
+        title: "", type: "مستند", relatedSection: "",
         externalLink: "", confidentiality: "internal", notes: ""
       }),
-      renderItem: (item, i) => renderCard(item, i),
-      onAfterRender: (item, i, card) => bindCard(item, i, card)
+      renderItem: (item, i) => renderCard(item, i)
     });
     document.getElementById("addEvidenceBtn").addEventListener("click", () => list.addItem());
   }
@@ -132,12 +125,7 @@
         </div>
 
         <div class="col-md-6">
-          <label class="field-label">رفع ملف</label>
-          <input type="file" class="form-control file-input">
-          <div class="upload-status" data-upload-status>${item.fileUrl ? `<i class="fa-solid fa-circle-check"></i> تم رفع ملف مسبقًا` : ""}</div>
-        </div>
-        <div class="col-md-6">
-          <label class="field-label">أو رابط خارجي</label>
+          <label class="field-label">رابط الملف <span class="text-muted" style="font-weight:400;">(ارفعي الملف على Google Drive أو أي مكان مشابه، وألصقي رابط المشاركة هنا)</span></label>
           <input type="url" class="form-control" data-field="externalLink" value="${escapeAttr(item.externalLink)}" placeholder="https://">
         </div>
 
@@ -149,41 +137,6 @@
     </div>`;
   }
 
-  function bindCard(item, i, card) {
-    if (!card) return;
-    const badge = card.querySelector(".confidentiality-badge");
-    const conf = CONFIDENTIALITY.find(c => c.value === item.confidentiality) || CONFIDENTIALITY[1];
-    if (badge) {
-      badge.className = `confidentiality-badge ${conf.cls}`;
-      badge.textContent = conf.label;
-    }
-
-    const fileInput = card.querySelector(".file-input");
-    if (fileInput && !fileInput._bound) {
-      fileInput._bound = true;
-      fileInput.addEventListener("change", async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const statusEl = card.querySelector("[data-upload-status]");
-        statusEl.className = "upload-status uploading";
-        statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جارٍ الرفع...`;
-        try {
-          const path = `reports/${reportId}/evidence/${Date.now()}_${file.name}`;
-          const storageRef = ref(storage, path);
-          await uploadBytes(storageRef, file);
-          const url = await getDownloadURL(storageRef);
-          item.fileUrl = url;
-          item.fileName = file.name;
-          statusEl.className = "upload-status done";
-          statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> تم رفع: ${file.name}`;
-        } catch (err) {
-          console.error(err);
-          statusEl.className = "upload-status error";
-          statusEl.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> فشل الرفع، حاولي مجددًا`;
-        }
-      });
-    }
-  }
 
   function escapeAttr(v) { return v === undefined || v === null ? "" : String(v).replace(/"/g, "&quot;"); }
 

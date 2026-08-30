@@ -15,16 +15,37 @@
  *      - Who has access: Anyone — عشان الموقع يقدر يوصل للرابط (هذا ما يعني إن أحد يشوف الشيت)
  * 7) انسخي رابط الـ Web app (ينتهي بـ /exec) وحطيه في ملف js/api-config.js بالموقع
  *    مكان "PASTE_YOUR_APPS_SCRIPT_URL_HERE"
+ *
+ * لو كان عندك نشر سابق شغال وسوّيتِ تحديث على هذا الكود:
+ * Deploy > Manage deployments > ✏️ تعديل > New version > Deploy
+ * (بدون كذا رابط الموقع القديم يفضل شغال بالكود القديم ولا يشوف التحديثات)
  */
 
 /* ------------------- الإعداد الأولي ------------------- */
+
+// ترتيب أعمدة شيت "التقارير" - كل قسم من أقسام النموذج له عمود يخزّن بياناته كنص JSON.
+// إضافة قسم جديد مستقبلاً = إضافة سطر هنا + إضافة اسم العمود بمصفوفة setup().
+const REPORT_COLUMNS_ = [
+  'المعرف', 'اسم المستخدم', 'الحالة',
+  'البيانات الأساسية', 'الأهداف', 'المؤشرات', 'الأعمال والبرامج',
+  'أدوات القياس', 'تحليل النتائج', 'نقاط القوة', 'الصعوبات والتحديات',
+  'فرص التحسين', 'المبادرات', 'قصص الأثر', 'التوصيات',
+  'خطة الفترة القادمة', 'الشواهد',
+  'آخر تحديث'
+];
+
+// الأعمدة اللي تُخزَّن كنص JSON فاضي '{}' افتراضيًا عند إنشاء تقرير جديد
+// (كل أعمدة الأقسام ما عدا المعرف/اسم المستخدم/الحالة/آخر تحديث)
+const JSON_COLUMNS_ = REPORT_COLUMNS_.filter(function (c) {
+  return ['المعرف', 'اسم المستخدم', 'الحالة', 'آخر تحديث'].indexOf(c) === -1;
+});
 
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   const sheets = {
     'المستخدمات': ['الاسم', 'اسم المستخدم', 'كلمة المرور', 'الدور', 'القسم', 'الوحدة'],
-    'التقارير': ['المعرف', 'اسم المستخدم', 'الحالة', 'البيانات الأساسية', 'الأهداف', 'المؤشرات', 'آخر تحديث']
+    'التقارير': REPORT_COLUMNS_
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -35,6 +56,7 @@ function setup() {
       sh.getRange(1, 1, 1, sheets[name].length).setFontWeight('bold');
       sh.setRightToLeft(true);
     } else {
+      // لو الشيت موجود من قبل بأعمدة أقل (تحديث نظام قديم)، نضيف الأعمدة الناقصة بآخر الصف
       const existingHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
       sheets[name].forEach(function (col) {
         if (existingHeaders.indexOf(col) === -1) {
@@ -50,7 +72,10 @@ function setup() {
     usersSheet.appendRow(['اسم تجريبي', 'test@furqan.org', '1234', 'موظفة', 'قسم البرامج القرآنية', 'وحدة تجريبية']);
   }
 
-  SpreadsheetApp.getUi().alert('تم إنشاء الشيتات بنجاح. عبّي شيت "المستخدمات" بأسماء وحسابات الموظفات، ثم Deploy > New deployment لنشر رابط الموقع.');
+  invalidateCache_('المستخدمات');
+  invalidateCache_('التقارير');
+
+  SpreadsheetApp.getUi().alert('تم إنشاء/تحديث الشيتات بنجاح. عبّي شيت "المستخدمات" بأسماء وحسابات الموظفات، ثم Deploy > Manage deployments > تعديل > New version لنشر آخر تحديث.');
 }
 
 /* ------------------- خرائط الأدوار والأقسام ------------------- */
@@ -65,18 +90,34 @@ const ROLE_LABEL_TO_CODE_ = {
   'مديرة مركز': 'center_manager'
 };
 
-// يقابل بين اسم القسم بالتقرير (basicData/goals/indicators...) واسم عمود شيت "التقارير"
+// يقابل بين مفتاح القسم بالتقرير (sectionKey بالكود) واسم عمود شيت "التقارير"
 const SECTION_COLUMN_ = {
   basicData: 'البيانات الأساسية',
   goals: 'الأهداف',
-  indicators: 'المؤشرات'
+  indicators: 'المؤشرات',
+  programs: 'الأعمال والبرامج',
+  measurementTools: 'أدوات القياس',
+  resultsAnalysis: 'تحليل النتائج',
+  strengths: 'نقاط القوة',
+  difficulties: 'الصعوبات والتحديات',
+  improvementOpportunities: 'فرص التحسين',
+  initiatives: 'المبادرات',
+  impactStories: 'قصص الأثر',
+  recommendations: 'التوصيات',
+  nextPeriodPlan: 'خطة الفترة القادمة',
+  evidence: 'الشواهد'
 };
 
 const REPORTS_SHEET_ = 'التقارير';
 const USERS_SHEET_ = 'المستخدمات';
 const DRAFT_STATUS_ = 'مسودة';
 
-/* ------------------- أدوات عامة (نفس أسلوب شيت المقاصف) ------------------- */
+// مدة التخزين المؤقت (ثواني) - تقلل قراءة الشيت الكامل بكل طلب فتسرّع الموقع كثيرًا.
+// شيت التقارير يتغيّر أكثر فنخليه مدة أقصر، وشيت المستخدمات شبه ثابت فنخليه أطول.
+const CACHE_SECONDS_REPORTS_ = 20;
+const CACHE_SECONDS_USERS_ = 300;
+
+/* ------------------- أدوات عامة (كاش + قراءة/كتابة الشيت) ------------------- */
 
 function sheet_(name) {
   return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
@@ -88,7 +129,25 @@ function colIndex_(sh, headerName) {
   return idx === -1 ? -1 : idx + 1;
 }
 
-function sheetToObjects_(name) {
+function getCache_() {
+  return CacheService.getScriptCache();
+}
+
+function invalidateCache_(name) {
+  try { getCache_().remove('sheet_' + name); } catch (e) { /* تجاهل */ }
+}
+
+// تقرأ الشيت كاملاً وتحوّله لمصفوفة كائنات {عمود: قيمة}, مع كاش مؤقت
+// (بدل قراءة كل صفوف الشيت من جديد بكل طلب، وهذا هو السبب الرئيسي لبطء الموقع سابقًا)
+function sheetToObjects_(name, cacheSeconds) {
+  const cache = getCache_();
+  const cacheKey = 'sheet_' + name;
+
+  try {
+    const cached = cache.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (e) { /* تجاهل أي خطأ بالكاش وأكملي القراءة العادية */ }
+
   const sh = sheet_(name);
   const data = sh.getDataRange().getValues();
   const headers = data[0];
@@ -99,6 +158,11 @@ function sheetToObjects_(name) {
     obj._row = i + 1;
     rows.push(obj);
   }
+
+  try {
+    cache.put(cacheKey, JSON.stringify(rows), cacheSeconds);
+  } catch (e) { /* البيانات كبيرة جدًا على الكاش - نتجاهل ونكمل بدون تخزين مؤقت */ }
+
   return rows;
 }
 
@@ -142,7 +206,7 @@ function login_(p) {
   const username = String(p.username || '').trim().toLowerCase();
   const password = String(p.password || '').trim();
 
-  const rows = sheetToObjects_(USERS_SHEET_);
+  const rows = sheetToObjects_(USERS_SHEET_, CACHE_SECONDS_USERS_);
   const found = rows.find(function (r) {
     return String(r['اسم المستخدم']).trim().toLowerCase() === username;
   });
@@ -169,45 +233,62 @@ function login_(p) {
 
 /* ------------------- التقرير الحالي (مسودة كل موظفة) ------------------- */
 
+function buildReportObject_(row) {
+  const report = {
+    id: row['المعرف'],
+    ownerUsername: row['اسم المستخدم'],
+    status: row['الحالة']
+  };
+  Object.keys(SECTION_COLUMN_).forEach(function (sectionKey) {
+    report[sectionKey] = parseJsonSafe_(row[SECTION_COLUMN_[sectionKey]]);
+  });
+  return report;
+}
+
+// تُرجع معرّف مسودة نشطة للمستخدمة + بيانات التقرير كاملة بنفس الطلب
+// (توفير جولة شبكة كاملة على كل فتح صفحة، وهذا كان يسبب بطء ملموس)
 function getOrCreateReport_(p) {
   const username = String(p.username || '').trim().toLowerCase();
   if (!username) return { ok: false, error: 'اسم المستخدم مفقود' };
 
-  const rows = sheetToObjects_(REPORTS_SHEET_);
+  const rows = sheetToObjects_(REPORTS_SHEET_, CACHE_SECONDS_REPORTS_);
   const existing = rows.find(function (r) {
     return String(r['اسم المستخدم']).trim().toLowerCase() === username &&
       String(r['الحالة']).trim() === DRAFT_STATUS_;
   });
   if (existing) {
-    return { ok: true, reportId: existing['المعرف'] };
+    return { ok: true, reportId: existing['المعرف'], report: buildReportObject_(existing) };
   }
 
   const sh = sheet_(REPORTS_SHEET_);
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
   const id = Utilities.getUuid();
-  sh.appendRow([id, p.username, DRAFT_STATUS_, '{}', '{}', '{}', new Date()]);
-  return { ok: true, reportId: id };
+  const now = new Date();
+  const rowValues = headers.map(function (h) {
+    if (h === 'المعرف') return id;
+    if (h === 'اسم المستخدم') return p.username;
+    if (h === 'الحالة') return DRAFT_STATUS_;
+    if (h === 'آخر تحديث') return now;
+    if (JSON_COLUMNS_.indexOf(h) !== -1) return '{}';
+    return '';
+  });
+  sh.appendRow(rowValues);
+  invalidateCache_(REPORTS_SHEET_);
+
+  const emptyRow = {};
+  headers.forEach(function (h, idx) { emptyRow[h] = rowValues[idx]; });
+  return { ok: true, reportId: id, report: buildReportObject_(emptyRow) };
 }
 
 function findReportRow_(reportId) {
-  const rows = sheetToObjects_(REPORTS_SHEET_);
+  const rows = sheetToObjects_(REPORTS_SHEET_, CACHE_SECONDS_REPORTS_);
   return rows.find(function (r) { return String(r['المعرف']).trim() === String(reportId).trim(); });
 }
 
 function getReport_(p) {
   const row = findReportRow_(p.reportId);
   if (!row) return { ok: false, error: 'ما لقينا هذا التقرير' };
-
-  return {
-    ok: true,
-    report: {
-      id: row['المعرف'],
-      ownerUsername: row['اسم المستخدم'],
-      status: row['الحالة'],
-      basicData: parseJsonSafe_(row['البيانات الأساسية']),
-      goals: parseJsonSafe_(row['الأهداف']),
-      indicators: parseJsonSafe_(row['المؤشرات'])
-    }
-  };
+  return { ok: true, report: buildReportObject_(row) };
 }
 
 function saveSection_(p) {
@@ -226,6 +307,7 @@ function saveSection_(p) {
   const dataText = typeof p.data === 'string' ? p.data : JSON.stringify(p.data);
   sh.getRange(row._row, colIndex_(sh, column)).setValue(dataText);
   sh.getRange(row._row, colIndex_(sh, 'آخر تحديث')).setValue(new Date());
+  invalidateCache_(REPORTS_SHEET_);
 
   return { ok: true };
 }

@@ -32,8 +32,7 @@ export const SECTIONS = [
     desc: "البرامج والأنشطة المنفذة ومستوى إنجازها",
     icon: "fa-diagram-project",
     page: "pages/programs.html",
-    repeatable: true,
-    enabled: false
+    repeatable: true
   },
   {
     key: "measurement-tools",
@@ -41,8 +40,7 @@ export const SECTIONS = [
     desc: "الاستبانات والاختبارات وأدوات القياس المستخدمة",
     icon: "fa-ruler-combined",
     page: "pages/measurement-tools.html",
-    repeatable: true,
-    enabled: false
+    repeatable: true
   },
   {
     key: "results-analysis",
@@ -50,8 +48,7 @@ export const SECTIONS = [
     desc: "أبرز النتائج الإيجابية والمقارنة بالفترة السابقة",
     icon: "fa-magnifying-glass-chart",
     page: "pages/results-analysis.html",
-    repeatable: false,
-    enabled: false
+    repeatable: false
   },
   {
     key: "strengths",
@@ -60,8 +57,7 @@ export const SECTIONS = [
     icon: "fa-shield-heart",
     page: "pages/strengths.html",
     repeatable: true,
-    maxItems: 5,
-    enabled: false
+    maxItems: 5
   },
   {
     key: "difficulties",
@@ -69,8 +65,7 @@ export const SECTIONS = [
     desc: "الصعوبات ومستواها ونطاقها والإجراءات المتخذة",
     icon: "fa-triangle-exclamation",
     page: "pages/difficulties.html",
-    repeatable: true,
-    enabled: false
+    repeatable: true
   },
   {
     key: "improvement-opportunities",
@@ -78,8 +73,7 @@ export const SECTIONS = [
     desc: "الفجوات بين الوضع الحالي والمرغوب وخطط سدها",
     icon: "fa-arrow-trend-up",
     page: "pages/improvement-opportunities.html",
-    repeatable: true,
-    enabled: false
+    repeatable: true
   },
   {
     key: "initiatives",
@@ -87,8 +81,7 @@ export const SECTIONS = [
     desc: "المبادرات الجديدة والممارسات القابلة للتعميم",
     icon: "fa-lightbulb",
     page: "pages/initiatives.html",
-    repeatable: true,
-    enabled: false
+    repeatable: true
   },
   {
     key: "impact-stories",
@@ -96,8 +89,7 @@ export const SECTIONS = [
     desc: "قصص الأثر الموثقة قبل وبعد التدخل",
     icon: "fa-star",
     page: "pages/impact-stories.html",
-    repeatable: true,
-    enabled: false
+    repeatable: true
   },
   {
     key: "recommendations",
@@ -105,8 +97,7 @@ export const SECTIONS = [
     desc: "توصيات مبنية على النتائج مع الأولوية والجهة المسؤولة",
     icon: "fa-list-check",
     page: "pages/recommendations.html",
-    repeatable: true,
-    enabled: false
+    repeatable: true
   },
   {
     key: "next-period-plan",
@@ -116,8 +107,7 @@ export const SECTIONS = [
     page: "pages/next-period-plan.html",
     repeatable: true,
     minItems: 3,
-    maxItems: 5,
-    enabled: false
+    maxItems: 5
   },
   {
     key: "evidence",
@@ -125,8 +115,7 @@ export const SECTIONS = [
     desc: "الملفات والروابط الداعمة مع درجة السرية",
     icon: "fa-paperclip",
     page: "pages/evidence.html",
-    repeatable: true,
-    enabled: false
+    repeatable: true
   },
   {
     key: "review-approval",
