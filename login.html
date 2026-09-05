@@ -24,9 +24,9 @@
 
       <form id="loginForm">
         <div class="form-group">
-          <label for="email">اسم المستخدم</label>
+          <label for="email">البريد الإلكتروني</label>
           <div class="input-icon-group">
-            <input type="text" id="email" class="form-control" placeholder="اسم المستخدم اللي بشيت المستخدمات" required autocomplete="username">
+            <input type="text" id="email" class="form-control" placeholder="البريد الإلكتروني اللي بشيت المستخدمات" required autocomplete="username">
             <i class="fa-regular fa-user"></i>
           </div>
         </div>
@@ -84,7 +84,7 @@
       redirectByRole(profile);
     } catch (err) {
       console.error(err);
-      showError(err.message || "تعذّر تسجيل الدخول. تحققي من اسم المستخدم وكلمة المرور.");
+      showError(err.message || "تعذّر تسجيل الدخول. تحققي من البريد الإلكتروني وكلمة المرور.");
       setLoading(false);
     }
   });

@@ -27,7 +27,7 @@ function currentUsername() {
 
 // تُرجع معرّف التقرير "النشط" لهذه الموظفة (صف واحد لكل موظفة بشيت "التقارير")،
 // أو تُنشئ واحد جديد فاضي إن لم يوجد. نفس المعرّف يرجع من أي جهاز تسجّل دخول
-// منه نفس الموظفة، لأن البحث يصير بـ"اسم المستخدم" بالسيرفر مباشرة.
+// منه نفس الموظفة، لأن البحث يصير بـ"البريد الإلكتروني" بالسيرفر مباشرة.
 export async function getOrCreateDraftReport(profile) {
   const res = await callApi("getOrCreateDraftReport", { username: profile.username });
   if (!res.ok) throw new Error(res.error || "تعذّر إنشاء/جلب التقرير");

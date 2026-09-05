@@ -15,7 +15,7 @@
  * 2) من القائمة: Extensions > Apps Script
  * 3) احذفي أي كود موجود بالمحرر، والصقي هذا الكود كامل.
  * 4) شغلي دالة setup() مرة وحدة من القائمة أعلى المحرر.
- * 5) عبّي شيت "المستخدمات" بأسماء الموظفات وبريد/اسم دخول وكلمة مرور لكل وحدة، ودورها.
+ * 5) عبّي شيت "المستخدمات" بأسماء الموظفات وبريدهن الإلكتروني وكلمة مرور لكل وحدة، ودورها.
  *    القيم المسموحة بعمود "الدور": موظفة / مسؤولة الوحدة / مديرة الوحدة / مديرة القسم / إدارة التعليم
  * 6) Deploy > New deployment > اختاري نوع "Web app":
  *      - Execute as: Me (حسابك) — هذا يخلي الشيت خاص تمامًا ولا يحتاج مشاركته مع أي أحد
@@ -30,7 +30,7 @@
 
 const USERS_SHEET_ = 'المستخدمات';
 const REPORTS_SHEET_ = 'التقارير';
-const REPORT_COLUMNS_ = ['المعرف', 'اسم المستخدم', 'الحالة', 'بيانات التقرير', 'تاريخ الإصدار', 'رابط PDF'];
+const REPORT_COLUMNS_ = ['المعرف', 'البريد الإلكتروني', 'الحالة', 'بيانات التقرير', 'تاريخ الإصدار', 'رابط PDF'];
 const PDF_FOLDER_NAME_ = 'تقارير الأداء - فرقان';
 
 /* ------------------- الإعداد الأولي ------------------- */
@@ -39,7 +39,7 @@ function setup() {
   const ss = ss_();
 
   const sheets = {
-    'المستخدمات': ['الاسم', 'اسم المستخدم', 'كلمة المرور', 'الدور', 'القسم', 'الوحدة'],
+    'المستخدمات': ['الاسم', 'البريد الإلكتروني', 'كلمة المرور', 'الدور', 'القسم', 'الوحدة'],
     'التقارير': REPORT_COLUMNS_
   };
 
@@ -181,19 +181,19 @@ function handleRequest_(p) {
 /* ------------------- تسجيل الدخول ------------------- */
 
 function login_(p) {
-  const username = String(p.username || '').trim().toLowerCase();
+  const email = String(p.username || '').trim().toLowerCase();
   const password = String(p.password || '').trim();
 
   const rows = sheetToObjects_(USERS_SHEET_, 300);
   const found = rows.find(function (r) {
-    return String(r['اسم المستخدم']).trim().toLowerCase() === username;
+    return String(r['البريد الإلكتروني']).trim().toLowerCase() === email;
   });
 
   if (!found) {
-    return { ok: false, error: 'ما لقينا اسم المستخدم "' + p.username + '". تأكدي إنه مكتوب بالضبط نفس شيت "المستخدمات".' };
+    return { ok: false, error: 'ما لقينا هذا البريد الإلكتروني "' + p.username + '" بشيت "المستخدمات". تأكدي إنه مكتوب بالضبط.' };
   }
   if (String(found['كلمة المرور']).trim() !== password) {
-    return { ok: false, error: 'اسم المستخدم صحيح، بس كلمة المرور مو مطابقة.' };
+    return { ok: false, error: 'البريد الإلكتروني صحيح، بس كلمة المرور مو مطابقة.' };
   }
 
   const roleLabel = String(found['الدور'] || '').trim();
@@ -201,7 +201,7 @@ function login_(p) {
 
   return {
     ok: true,
-    username: String(found['اسم المستخدم']).trim(),
+    username: String(found['البريد الإلكتروني']).trim(),
     name: found['الاسم'] || '',
     role: roleCode,
     department: found['القسم'] || '',
@@ -210,13 +210,13 @@ function login_(p) {
 }
 
 /* ------------------- تخزين بيانات التقرير (كل الأقسام) بقوقل شيت -------------------
-   كل موظفة لها صف واحد "نشط" بشيت "التقارير" (يتحدّد بـ"اسم المستخدم")، وفيه عمود
+   كل موظفة لها صف واحد "نشط" بشيت "التقارير" (يتحدّد بـ"البريد الإلكتروني")، وفيه عمود
    "بيانات التقرير" يخزّن كل الأقسام كنص JSON واحد. هذا يخلي الحفظ مركزي بالسيرفر
    (مو بمتصفح الجهاز)، فتقدر الموظفة تفتح من أي جهاز (جوال/لابتوب) وتلقى نفس البيانات. */
 
 function findReportRowByUsername_(username) {
   const rows = sheetToObjects_(REPORTS_SHEET_, 20);
-  return rows.find(function (r) { return String(r['اسم المستخدم']).trim() === String(username).trim(); }) || null;
+  return rows.find(function (r) { return String(r['البريد الإلكتروني']).trim().toLowerCase() === String(username).trim().toLowerCase(); }) || null;
 }
 
 function findReportRowById_(reportId) {
@@ -230,7 +230,7 @@ function parseReportData_(raw) {
 
 function getOrCreateDraftReport_(p) {
   const username = String(p.username || '').trim();
-  if (!username) return { ok: false, error: 'اسم المستخدم مفقود' };
+  if (!username) return { ok: false, error: 'البريد الإلكتروني مفقود' };
 
   const existing = findReportRowByUsername_(username);
   if (existing) {
@@ -247,7 +247,7 @@ function getOrCreateDraftReport_(p) {
     }
     const id = Utilities.getUuid();
     const sh = sheet_(REPORTS_SHEET_);
-    appendRowByHeaders_(sh, { 'المعرف': id, 'اسم المستخدم': username, 'الحالة': 'مسودة', 'بيانات التقرير': '{}' });
+    appendRowByHeaders_(sh, { 'المعرف': id, 'البريد الإلكتروني': username, 'الحالة': 'مسودة', 'بيانات التقرير': '{}' });
     invalidateCache_(REPORTS_SHEET_);
     return { ok: true, reportId: id, data: {} };
   } finally {
@@ -300,7 +300,7 @@ function getOrCreatePdfFolder_() {
 
 function uploadReportPdf_(p) {
   const username = String(p.username || '').trim();
-  if (!username) return { ok: false, error: 'اسم المستخدم مفقود' };
+  if (!username) return { ok: false, error: 'البريد الإلكتروني مفقود' };
   if (!p.reportId) return { ok: false, error: 'معرّف التقرير مفقود' };
   if (!p.pdfBase64) return { ok: false, error: 'ملف الـ PDF مفقود' };
 
@@ -324,7 +324,7 @@ function uploadReportPdf_(p) {
   } else {
     // احتياط نادر: لو صار إصدار قبل ما يتسجّل صف مسودة لأي سبب
     appendRowByHeaders_(sh, {
-      'المعرف': p.reportId, 'اسم المستخدم': username, 'الحالة': 'مُصدر',
+      'المعرف': p.reportId, 'البريد الإلكتروني': username, 'الحالة': 'مُصدر',
       'بيانات التقرير': '{}', 'تاريخ الإصدار': now, 'رابط PDF': pdfUrl
     });
   }
