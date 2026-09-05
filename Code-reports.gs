@@ -3,12 +3,12 @@
  * الكود الخلفي (Google Apps Script) - نسخة قوقل شيت
  *
  * كيف يشتغل النظام:
- * - كل الأقسام (١٤ قسم) تُملأ وتُحفظ محليًا بمتصفح الموظفة (بدون أي اتصال
- *   بهذا السكربت أثناء التعبئة - سريع جدًا).
- * - لما تضغط "إصدار وحفظ بقوقل شيت"، يتولّد ملف PDF بالمتصفح ويترفع هنا
- *   دفعة وحدة: يُحفظ بمجلد Google Drive، ويُسجَّل رابطه بسطر بشيت "التقارير".
- * - هذا السكربت ما يخزّن أي تفاصيل خام للتقرير (مؤشرات/برامج/...) إطلاقًا -
- *   فقط رابط ملف الـ PDF النهائي.
+ * - كل الأقسام (١٤ قسم) تُحفظ مباشرة بهذا الشيت أول ما تعبّي الموظفة أي حقل
+ *   (نفس طريقة نظام المقاصف) - قسم واحد لكل صف بشيت "التقارير"، بعمود
+ *   "بيانات التقرير" كنص JSON. هذا يخلي البيانات متاحة من أي جهاز تسجّل
+ *   دخول منه نفس الموظفة (جوال، لابتوب...)، مو محصورة بجهاز واحد.
+ * - لما تضغط "إصدار وحفظ بقوقل شيت"، يتولّد ملف PDF بالمتصفح ويترفع هنا:
+ *   يُحفظ بمجلد Google Drive، ويُسجَّل رابطه بنفس صف التقرير، وتتحدّث حالته لـ"مُصدر".
  *
  * طريقة التركيب:
  * 1) أنشئي Google Sheet جديد فاضي (منفصل تمامًا عن شيت المقاصف).
@@ -30,7 +30,7 @@
 
 const USERS_SHEET_ = 'المستخدمات';
 const REPORTS_SHEET_ = 'التقارير';
-const REPORT_COLUMNS_ = ['المعرف', 'اسم المستخدم', 'تاريخ الإصدار', 'رابط PDF'];
+const REPORT_COLUMNS_ = ['المعرف', 'اسم المستخدم', 'الحالة', 'بيانات التقرير', 'تاريخ الإصدار', 'رابط PDF'];
 const PDF_FOLDER_NAME_ = 'تقارير الأداء - فرقان';
 
 /* ------------------- الإعداد الأولي ------------------- */
@@ -102,6 +102,14 @@ function colIndex_(sh, headerName) {
   return idx === -1 ? -1 : idx + 1;
 }
 
+function appendRowByHeaders_(sh, valuesObj) {
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const row = headers.map(function (h) {
+    return valuesObj.hasOwnProperty(h) ? valuesObj[h] : '';
+  });
+  sh.appendRow(row);
+}
+
 function getCache_() {
   return CacheService.getScriptCache();
 }
@@ -159,6 +167,10 @@ function handleRequest_(p) {
     switch (action) {
       case 'login': return json_(login_(p));
       case 'uploadReportPdf': return json_(uploadReportPdf_(p));
+      case 'getOrCreateDraftReport': return json_(getOrCreateDraftReport_(p));
+      case 'loadReport': return json_(loadReport_(p));
+      case 'saveReportSection': return json_(saveReportSection_(p));
+      case 'clearReport': return json_(clearReport_(p));
       default: return json_({ ok: false, error: 'إجراء غير معروف' });
     }
   } catch (err) {
@@ -197,6 +209,87 @@ function login_(p) {
   };
 }
 
+/* ------------------- تخزين بيانات التقرير (كل الأقسام) بقوقل شيت -------------------
+   كل موظفة لها صف واحد "نشط" بشيت "التقارير" (يتحدّد بـ"اسم المستخدم")، وفيه عمود
+   "بيانات التقرير" يخزّن كل الأقسام كنص JSON واحد. هذا يخلي الحفظ مركزي بالسيرفر
+   (مو بمتصفح الجهاز)، فتقدر الموظفة تفتح من أي جهاز (جوال/لابتوب) وتلقى نفس البيانات. */
+
+function findReportRowByUsername_(username) {
+  const rows = sheetToObjects_(REPORTS_SHEET_, 20);
+  return rows.find(function (r) { return String(r['اسم المستخدم']).trim() === String(username).trim(); }) || null;
+}
+
+function findReportRowById_(reportId) {
+  const rows = sheetToObjects_(REPORTS_SHEET_, 20);
+  return rows.find(function (r) { return String(r['المعرف']).trim() === String(reportId).trim(); }) || null;
+}
+
+function parseReportData_(raw) {
+  try { return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; }
+}
+
+function getOrCreateDraftReport_(p) {
+  const username = String(p.username || '').trim();
+  if (!username) return { ok: false, error: 'اسم المستخدم مفقود' };
+
+  const existing = findReportRowByUsername_(username);
+  if (existing) {
+    return { ok: true, reportId: existing['المعرف'], data: parseReportData_(existing['بيانات التقرير']) };
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    // نتأكد مرة ثانية بعد أخذ القفل تحسبًا لطلبين متزامنين لنفس الموظفة
+    const doubleCheck = findReportRowByUsername_(username);
+    if (doubleCheck) {
+      return { ok: true, reportId: doubleCheck['المعرف'], data: parseReportData_(doubleCheck['بيانات التقرير']) };
+    }
+    const id = Utilities.getUuid();
+    const sh = sheet_(REPORTS_SHEET_);
+    appendRowByHeaders_(sh, { 'المعرف': id, 'اسم المستخدم': username, 'الحالة': 'مسودة', 'بيانات التقرير': '{}' });
+    invalidateCache_(REPORTS_SHEET_);
+    return { ok: true, reportId: id, data: {} };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function loadReport_(p) {
+  const row = findReportRowById_(p.reportId);
+  if (!row) return { ok: false, error: 'لا توجد بيانات محفوظة لهذا التقرير' };
+  return { ok: true, data: parseReportData_(row['بيانات التقرير']), status: row['الحالة'] || 'مسودة' };
+}
+
+function saveReportSection_(p) {
+  if (!p.reportId) return { ok: false, error: 'معرّف التقرير مفقود' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sh = sheet_(REPORTS_SHEET_);
+    const row = findReportRowById_(p.reportId);
+    if (!row) return { ok: false, error: 'التقرير غير موجود' };
+    const data = parseReportData_(row['بيانات التقرير']);
+    data[p.sectionKey] = JSON.parse(p.dataJson || 'null');
+    sh.getRange(row._row, colIndex_(sh, 'بيانات التقرير')).setValue(JSON.stringify(data));
+    invalidateCache_(REPORTS_SHEET_);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function clearReport_(p) {
+  if (!p.reportId) return { ok: false, error: 'معرّف التقرير مفقود' };
+  const sh = sheet_(REPORTS_SHEET_);
+  const row = findReportRowById_(p.reportId);
+  if (!row) return { ok: false, error: 'التقرير غير موجود' };
+  sh.getRange(row._row, colIndex_(sh, 'بيانات التقرير')).setValue('{}');
+  sh.getRange(row._row, colIndex_(sh, 'الحالة')).setValue('مسودة');
+  invalidateCache_(REPORTS_SHEET_);
+  return { ok: true };
+}
+
 /* ------------------- إصدار التقرير: رفع الـ PDF وتسجيل رابطه ------------------- */
 
 function getOrCreatePdfFolder_() {
@@ -221,15 +314,19 @@ function uploadReportPdf_(p) {
   const pdfUrl = file.getUrl();
 
   const sh = sheet_(REPORTS_SHEET_);
-  const rows = sheetToObjects_(REPORTS_SHEET_, 20);
-  const existing = rows.find(function (r) { return String(r['المعرف']).trim() === String(p.reportId).trim(); });
+  const existing = findReportRowById_(p.reportId);
   const now = new Date();
 
   if (existing) {
     sh.getRange(existing._row, colIndex_(sh, 'رابط PDF')).setValue(pdfUrl);
     sh.getRange(existing._row, colIndex_(sh, 'تاريخ الإصدار')).setValue(now);
+    sh.getRange(existing._row, colIndex_(sh, 'الحالة')).setValue('مُصدر');
   } else {
-    sh.appendRow([p.reportId, username, now, pdfUrl]);
+    // احتياط نادر: لو صار إصدار قبل ما يتسجّل صف مسودة لأي سبب
+    appendRowByHeaders_(sh, {
+      'المعرف': p.reportId, 'اسم المستخدم': username, 'الحالة': 'مُصدر',
+      'بيانات التقرير': '{}', 'تاريخ الإصدار': now, 'رابط PDF': pdfUrl
+    });
   }
   invalidateCache_(REPORTS_SHEET_);
 

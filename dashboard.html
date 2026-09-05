@@ -49,9 +49,8 @@
   });
 
   function onClear() {
-    if (!confirm("هل أنتِ متأكدة من مسح كل بيانات التقرير الحالي من هذا الجهاز؟ لا يمكن التراجع عن هذا الإجراء.")) return;
-    clearLocalReport(reportId);
-    window.location.reload();
+    if (!confirm("هل أنتِ متأكدة من مسح كل بيانات التقرير الحالي؟ سيتم مسحها من كل الأجهزة ولا يمكن التراجع عن هذا الإجراء.")) return;
+    clearLocalReport(reportId).then(() => window.location.reload());
   }
 
   function renderCards() {
