@@ -29,6 +29,7 @@
  */
 
 const USERS_SHEET_ = 'المستخدمات';
+const UNITS_SHEET_ = 'الوحدات والمراكز';
 const REPORTS_SHEET_ = 'التقارير';
 const REPORT_COLUMNS_ = ['المعرف', 'البريد الإلكتروني', 'الحالة', 'بيانات التقرير', 'تاريخ الإصدار', 'رابط PDF'];
 const PDF_FOLDER_NAME_ = 'تقارير الأداء - فرقان';
@@ -40,6 +41,7 @@ function setup() {
 
   const sheets = {
     'المستخدمات': ['الاسم', 'البريد الإلكتروني', 'كلمة المرور', 'الدور', 'القسم', 'الوحدة'],
+    'الوحدات والمراكز': ['اسم الوحدة أو المركز', 'كلمة المرور'],
     'التقارير': REPORT_COLUMNS_
   };
 
@@ -166,6 +168,7 @@ function handleRequest_(p) {
     const action = p.action;
     switch (action) {
       case 'login': return json_(login_(p));
+      case 'loginUnit': return json_(loginUnit_(p));
       case 'uploadReportPdf': return json_(uploadReportPdf_(p));
       case 'getOrCreateDraftReport': return json_(getOrCreateDraftReport_(p));
       case 'loadReport': return json_(loadReport_(p));
@@ -206,6 +209,36 @@ function login_(p) {
     role: roleCode,
     department: found['القسم'] || '',
     unit: found['الوحدة'] || ''
+  };
+}
+
+/* تسجيل دخول مشترك لوحدة أو مركز (حساب واحد مشترك، بدون بريد إلكتروني فردي) -
+   بنفس فكرة دخول المراكز بنظام المقاصف: اسم الوحدة/المركز + كلمة مرور واحدة
+   يعرفها الجميع بنفس الوحدة. البيانات تُخزَّن وتُسترجع بنفس شيت "التقارير"
+   باستخدام اسم الوحدة/المركز نفسه كمعرّف فريد (بدل البريد الإلكتروني). */
+function loginUnit_(p) {
+  const name = String(p.name || '').trim();
+  const password = String(p.password || '').trim();
+
+  const rows = sheetToObjects_(UNITS_SHEET_, 300);
+  const found = rows.find(function (r) {
+    return String(r['اسم الوحدة أو المركز']).trim().toLowerCase() === name.toLowerCase();
+  });
+
+  if (!found) {
+    return { ok: false, error: 'ما لقينا هذا الاسم "' + p.name + '" بشيت "الوحدات والمراكز". تأكدي إنه مكتوب بالضبط.' };
+  }
+  if (String(found['كلمة المرور']).trim() !== password) {
+    return { ok: false, error: 'الاسم صحيح، بس كلمة المرور مو مطابقة.' };
+  }
+
+  return {
+    ok: true,
+    username: String(found['اسم الوحدة أو المركز']).trim(),
+    name: String(found['اسم الوحدة أو المركز']).trim(),
+    role: 'center_manager',
+    department: '',
+    unit: String(found['اسم الوحدة أو المركز']).trim()
   };
 }
 

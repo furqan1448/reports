@@ -22,6 +22,11 @@
     <div class="body">
       <div id="alertBox" class="alert alert-error"></div>
 
+      <div class="login-tabs" style="display:flex;gap:8px;margin-bottom:18px;">
+        <button type="button" class="tab-btn active" id="tabIndividual" style="flex:1;">دخول فردي</button>
+        <button type="button" class="tab-btn" id="tabUnit" style="flex:1;">دخول وحدة أو مركز</button>
+      </div>
+
       <form id="loginForm">
         <div class="form-group">
           <label for="email">البريد الإلكتروني</label>
@@ -44,6 +49,29 @@
           <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
         </button>
       </form>
+
+      <form id="unitLoginForm" class="d-none">
+        <div class="form-group">
+          <label for="unitName">اسم الوحدة أو المركز</label>
+          <div class="input-icon-group">
+            <input type="text" id="unitName" class="form-control" placeholder="اسم الوحدة أو المركز اللي بشيت الوحدات والمراكز" required autocomplete="username">
+            <i class="fa-solid fa-building-columns"></i>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="unitPassword">كلمة المرور</label>
+          <div class="input-icon-group">
+            <input type="password" id="unitPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="unitLoginBtn">
+          <span id="unitLoginBtnText">تسجيل الدخول</span>
+          <span id="unitLoginSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+        </button>
+      </form>
     </div>
     <div class="login-footer">
       جميع الحقوق محفوظة &copy; جمعية فرقان لتحفيظ القرآن الكريم
@@ -52,18 +80,35 @@
 </div>
 
 <script type="module">
-  import { login, redirectByRole } from "./js/auth.js";
+  import { login, loginUnit, redirectByRole } from "./js/auth.js";
 
-  const form = document.getElementById("loginForm");
   const alertBox = document.getElementById("alertBox");
-  const btn = document.getElementById("loginBtn");
-  const btnText = document.getElementById("loginBtnText");
-  const spinner = document.getElementById("loginSpinner");
+
+  const tabIndividual = document.getElementById("tabIndividual");
+  const tabUnit = document.getElementById("tabUnit");
+  const loginForm = document.getElementById("loginForm");
+  const unitLoginForm = document.getElementById("unitLoginForm");
+
+  function showTab(tab) {
+    alertBox.classList.remove("show");
+    const isIndividual = tab === "individual";
+    tabIndividual.classList.toggle("active", isIndividual);
+    tabUnit.classList.toggle("active", !isIndividual);
+    loginForm.classList.toggle("d-none", !isIndividual);
+    unitLoginForm.classList.toggle("d-none", isIndividual);
+  }
+  tabIndividual.addEventListener("click", () => showTab("individual"));
+  tabUnit.addEventListener("click", () => showTab("unit"));
 
   function showError(msg) {
     alertBox.textContent = msg;
     alertBox.classList.add("show");
   }
+
+  // -------- دخول فردي (بريد إلكتروني) --------
+  const btn = document.getElementById("loginBtn");
+  const btnText = document.getElementById("loginBtnText");
+  const spinner = document.getElementById("loginSpinner");
 
   function setLoading(loading) {
     btn.disabled = loading;
@@ -71,7 +116,7 @@
     btnText.textContent = loading ? "جارٍ الدخول..." : "تسجيل الدخول";
   }
 
-  form.addEventListener("submit", async (e) => {
+  loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     alertBox.classList.remove("show");
     setLoading(true);
@@ -86,6 +131,35 @@
       console.error(err);
       showError(err.message || "تعذّر تسجيل الدخول. تحققي من البريد الإلكتروني وكلمة المرور.");
       setLoading(false);
+    }
+  });
+
+  // -------- دخول مشترك لوحدة أو مركز --------
+  const unitBtn = document.getElementById("unitLoginBtn");
+  const unitBtnText = document.getElementById("unitLoginBtnText");
+  const unitSpinner = document.getElementById("unitLoginSpinner");
+
+  function setUnitLoading(loading) {
+    unitBtn.disabled = loading;
+    unitSpinner.classList.toggle("d-none", !loading);
+    unitBtnText.textContent = loading ? "جارٍ الدخول..." : "تسجيل الدخول";
+  }
+
+  unitLoginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    alertBox.classList.remove("show");
+    setUnitLoading(true);
+
+    const name = document.getElementById("unitName").value.trim();
+    const password = document.getElementById("unitPassword").value;
+
+    try {
+      const profile = await loginUnit(name, password);
+      redirectByRole(profile);
+    } catch (err) {
+      console.error(err);
+      showError(err.message || "تعذّر تسجيل الدخول. تحققي من اسم الوحدة/المركز وكلمة المرور.");
+      setUnitLoading(false);
     }
   });
 </script>
