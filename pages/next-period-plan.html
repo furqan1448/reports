@@ -52,7 +52,7 @@
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
   import { getOrCreateDraftReport, loadReport, saveArraySection } from "../report-state.js";
-  import { showSaveToast } from "../js/components/form-helpers.js";
+  import { showSaveToast , attachContainerAutosave} from "../js/components/form-helpers.js";
   import { RepeatableList } from "../js/components/repeatable-list.js";
 
   let reportId, list;
@@ -86,6 +86,8 @@
       renderItem: (item, i) => renderCard(item, i),
       onAfterRender: () => updateLimitNote()
     });
+
+    attachContainerAutosave(container, onSave);
     document.getElementById("addPlanBtn").addEventListener("click", () => {
       list.addItem();
       updateLimitNote();

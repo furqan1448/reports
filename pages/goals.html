@@ -111,7 +111,7 @@
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
   import { getOrCreateDraftReport, loadReport, saveSection } from "../report-state.js";
-  import { showSaveToast, bindCharCounter } from "../js/components/form-helpers.js";
+  import { showSaveToast, bindCharCounter, attachAutosave } from "../js/components/form-helpers.js";
   import { loadOrgData } from "../js/components/org-data.js";
 
   let reportId;
@@ -124,6 +124,7 @@
     initSelects();
     bindLogic();
     await hydrateForm();
+    attachAutosave(document.getElementById("goalsForm"), collectData, (data) => saveSection(reportId, "goals", data));
   });
 
   function initSelects() {
@@ -181,15 +182,13 @@
     if (d.evidenceOther) document.getElementById("evOtherText").value = d.evidenceOther;
   }
 
-  async function onSubmit(e) {
-    e.preventDefault();
-
+  function collectData() {
     const operationalGoals = [...document.querySelectorAll("#operationalGoals input:checked")].map(c => c.value);
     const evidence = [...document.querySelectorAll('.form-section input[type="checkbox"]:checked')]
       .map(c => c.value)
       .filter(v => !operationalGoals.includes(v));
 
-    const data = {
+    return {
       strategicGoal: document.getElementById("strategicGoal").value,
       operationalGoals,
       achievementLevel: document.getElementById("achievementLevel").value,
@@ -198,9 +197,12 @@
       evidence,
       evidenceOther: document.getElementById("evOtherText").value || ""
     };
+  }
 
+  async function onSubmit(e) {
+    e.preventDefault();
     try {
-      await saveSection(reportId, "goals", data);
+      await saveSection(reportId, "goals", collectData());
       showSaveToast("تم حفظ الأهداف والمستهدفات بنجاح");
       document.getElementById("lastSaved").textContent = "آخر حفظ: " + new Date().toLocaleString("ar-SA");
     } catch (err) {

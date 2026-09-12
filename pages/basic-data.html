@@ -172,7 +172,7 @@
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
   import { getOrCreateDraftReport, loadReport, saveSection } from "../report-state.js";
-  import { showSaveToast } from "../js/components/form-helpers.js";
+  import { showSaveToast, attachAutosave } from "../js/components/form-helpers.js";
   import { loadOrgData, HIJRI_YEARS } from "../js/components/org-data.js";
 
   let reportId;
@@ -185,6 +185,7 @@
     initSelects();
     bindLogic();
     await hydrateForm();
+    attachAutosave(document.getElementById("basicDataForm"), collectData, (data) => saveSection(reportId, "basicData", data));
   });
 
   function initSelects() {
@@ -264,9 +265,8 @@
     if (d.directManager) document.getElementById("directManager").value = d.directManager;
   }
 
-  async function onSubmit(e) {
-    e.preventDefault();
-    const data = {
+  function collectData() {
+    return {
       mainEntity: document.getElementById("mainEntity").value,
       entityType: document.getElementById("entityType").value,
       departmentName: document.getElementById("departmentName").value,
@@ -283,9 +283,12 @@
       preparerTitle: document.getElementById("preparerTitle").value,
       directManager: document.getElementById("directManager").value
     };
+  }
 
+  async function onSubmit(e) {
+    e.preventDefault();
     try {
-      await saveSection(reportId, "basicData", data);
+      await saveSection(reportId, "basicData", collectData());
       showSaveToast("تم حفظ البيانات الأساسية بنجاح");
       document.getElementById("lastSaved").textContent = "آخر حفظ: " + new Date().toLocaleString("ar-SA");
     } catch (err) {

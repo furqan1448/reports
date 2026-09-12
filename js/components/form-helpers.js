@@ -47,6 +47,48 @@ export function bindConditionalSection(triggerId, sectionId, showWhen) {
   toggle();
 }
 
+// نسخة أبسط من attachAutosave لصفحات "القوائم القابلة للتكرار" (RepeatableList):
+// بما إن كل صفحة عندها أصلاً دالة onSave() جاهزة تعرض إشعار الحفظ وتحدّث
+// "آخر حفظ"، هذي الدالة بس تستدعيها تلقائيًا (بتأخير بسيط) بعد أي تعديل على
+// أي حقل داخل الحاوية - بدون تكرار إشعار الحفظ مرتين.
+export function attachContainerAutosave(containerEl, onSaveFn, debounceMs = 700) {
+  if (!containerEl) return;
+  let timer = null;
+  function trigger() {
+    clearTimeout(timer);
+    timer = setTimeout(() => { onSaveFn(); }, debounceMs);
+  }
+  containerEl.addEventListener("input", trigger);
+  containerEl.addEventListener("change", trigger);
+}
+
+// حفظ تلقائي فوري بمجرد ما تكتب/تختارين أي حقل بالنموذج - بنفس فكرة نظام
+// المقاصف بالضبط (ما تحتاجين تدوسين زر حفظ عشان بياناتك تنحفظ، بس الزر يبقى
+// موجود كتأكيد يدوي إضافي). collectFn ترجع بيانات النموذج الحالية، وsaveFn
+// تحفظها (مثلًا saveSection). فيه تأخير بسيط (debounce) عشان ما يرسل طلب
+// لكل حرف تكتبينه، بس ينتظر توقفك عن الكتابة نصف ثانية تقريبًا.
+export function attachAutosave(formEl, collectFn, saveFn, opts = {}) {
+  if (!formEl) return;
+  const debounceMs = opts.debounceMs ?? 700;
+  let timer = null;
+
+  function trigger() {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      try {
+        await saveFn(collectFn());
+        showSaveToast(opts.savedMessage || "تم الحفظ تلقائيًا");
+      } catch (err) {
+        console.error(err);
+        showSaveToast("تعذّر الحفظ التلقائي، تحققي من الإنترنت", true);
+      }
+    }, debounceMs);
+  }
+
+  formEl.addEventListener("input", trigger);
+  formEl.addEventListener("change", trigger);
+}
+
 // شريط إشعار صغير أعلى الصفحة يظهر عند الحفظ
 export function showSaveToast(message = "تم الحفظ", isError = false) {
   let toast = document.getElementById("saveToast");

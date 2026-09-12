@@ -76,7 +76,7 @@
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
   import { getOrCreateDraftReport, loadReport, saveSection } from "../report-state.js";
-  import { showSaveToast, computeIndicatorStatus, STATUS_LABELS } from "../js/components/form-helpers.js";
+  import { showSaveToast, computeIndicatorStatus, STATUS_LABELS, attachAutosave } from "../js/components/form-helpers.js";
 
   let reportId, report;
 
@@ -88,6 +88,7 @@
     renderCharts();
     hydrateForm();
     document.getElementById("analysisForm").addEventListener("submit", onSubmit);
+    attachAutosave(document.getElementById("analysisForm"), collectData, (data) => saveSection(reportId, "resultsAnalysis", data));
   });
 
   function renderStats() {
@@ -178,19 +179,22 @@
 
   async function onSubmit(e) {
     e.preventDefault();
-    const data = {
-      positiveResults: document.getElementById("positiveResults").value,
-      periodComparison: document.getElementById("periodComparison").value,
-      generalSummary: document.getElementById("generalSummary").value
-    };
     try {
-      await saveSection(reportId, "resultsAnalysis", data);
+      await saveSection(reportId, "resultsAnalysis", collectData());
       showSaveToast("تم حفظ تحليل النتائج بنجاح");
       document.getElementById("lastSaved").textContent = "آخر حفظ: " + new Date().toLocaleString("ar-SA");
     } catch (err) {
       console.error(err);
       showSaveToast("تعذر الحفظ، حاولي مجددًا", true);
     }
+  }
+
+  function collectData() {
+    return {
+      positiveResults: document.getElementById("positiveResults").value,
+      periodComparison: document.getElementById("periodComparison").value,
+      generalSummary: document.getElementById("generalSummary").value
+    };
   }
 </script>
 </body>

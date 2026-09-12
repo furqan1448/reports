@@ -48,7 +48,7 @@
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
   import { getOrCreateDraftReport, loadReport, saveArraySection } from "../report-state.js";
-  import { showSaveToast, computeIndicatorStatus, renderStatusPill } from "../js/components/form-helpers.js";
+  import { showSaveToast, computeIndicatorStatus, renderStatusPill , attachContainerAutosave} from "../js/components/form-helpers.js";
   import { RepeatableList } from "../js/components/repeatable-list.js";
 
   let reportId;
@@ -90,6 +90,8 @@
       renderItem: (item, i) => renderIndicatorCard(item, i),
       onAfterRender: (item, i, card) => bindIndicatorCard(item, i, card)
     });
+
+    attachContainerAutosave(container, onSave);
 
     document.getElementById("addIndicatorBtn").addEventListener("click", () => list.addItem());
   }

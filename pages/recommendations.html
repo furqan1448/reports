@@ -51,7 +51,7 @@
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
   import { getOrCreateDraftReport, loadReport, saveArraySection } from "../report-state.js";
-  import { showSaveToast } from "../js/components/form-helpers.js";
+  import { showSaveToast , attachContainerAutosave} from "../js/components/form-helpers.js";
   import { RepeatableList } from "../js/components/repeatable-list.js";
 
   let reportId, list;
@@ -84,6 +84,8 @@
       renderItem: (item, i) => renderCard(item, i),
       onAfterRender: (item, i, card) => bindCard(item, i, card)
     });
+
+    attachContainerAutosave(container, onSave);
     document.getElementById("addRecBtn").addEventListener("click", () => list.addItem());
   }
 
