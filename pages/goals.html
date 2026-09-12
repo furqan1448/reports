@@ -112,13 +112,15 @@
   import { renderTopbar } from "../js/components/topbar.js";
   import { getOrCreateDraftReport, loadReport, saveSection } from "../report-state.js";
   import { showSaveToast, bindCharCounter } from "../js/components/form-helpers.js";
-  import { STRATEGIC_GOALS, OPERATIONAL_GOALS } from "../js/components/org-data.js";
+  import { loadOrgData } from "../js/components/org-data.js";
 
   let reportId;
+  let orgData;
 
   requireAuth(async (profile) => {
     renderTopbar(profile, { homeHref: "../dashboard.html" });
     reportId = await getOrCreateDraftReport(profile);
+    orgData = await loadOrgData();
     initSelects();
     bindLogic();
     await hydrateForm();
@@ -127,10 +129,10 @@
   function initSelects() {
     document.getElementById("strategicGoal").innerHTML =
       `<option value="" disabled selected>اختاري...</option>` +
-      STRATEGIC_GOALS.map(g => `<option value="${g}">${g}</option>`).join("");
+      orgData.strategicGoals.map(g => `<option value="${g}">${g}</option>`).join("");
 
     document.getElementById("operationalGoals").innerHTML =
-      OPERATIONAL_GOALS.map((g, i) => `
+      orgData.operationalGoals.map((g, i) => `
         <div class="form-check">
           <input class="form-check-input" type="checkbox" value="${g}" id="og${i}">
           <label class="form-check-label" for="og${i}">${g}</label>

@@ -43,6 +43,13 @@ const REPORTS_SHEET_ = 'التقارير';
 const REPORT_COLUMNS_ = ['المعرف', 'البريد الإلكتروني', 'الاسم', 'القسم', 'الوحدة', 'الحالة', 'بيانات التقرير', 'البريد الإلكتروني للمراجع', 'سجل الإجراءات', 'آخر تحديث', 'تاريخ الإصدار', 'رابط PDF'];
 const PDF_FOLDER_NAME_ = 'تقارير الأداء - فرقان';
 
+// شيتات القوائم المرجعية المستخدمة بنماذج التقرير (الأقسام/الوحدات/المكاتب/الأهداف)
+// بدل ما تكون هذي القوائم مكتوبة داخل كود الموقع، تُقرأ من هذي الشيتات مباشرة
+// عشان تقدرين تضيفين أو تعدّلين قسم/وحدة/مكتب/هدف من الشيت نفسه بدون أي تعديل بالكود
+const DEPARTMENTS_SHEET_ = 'الأقسام والوحدات';
+const OFFICES_SHEET_ = 'المكاتب';
+const GOALS_SHEET_ = 'الأهداف';
+
 /* ------------------- مسار المراجعة والاعتماد ------------------- */
 
 const STATUS_LABELS_AR_ = {
@@ -77,6 +84,9 @@ function setup() {
 
   const sheets = {
     'المستخدمات': ['الاسم', 'البريد الإلكتروني', 'كلمة المرور', 'الدور', 'القسم', 'الوحدة'],
+    'الأقسام والوحدات': ['القسم', 'الوحدة'],
+    'المكاتب': ['اسم المكتب'],
+    'الأهداف': ['النوع', 'الهدف'],
     'التقارير': REPORT_COLUMNS_
   };
 
@@ -102,8 +112,48 @@ function setup() {
     usersSheet.appendRow(['اسم تجريبي', 'test@furqan.org', '1234', 'موظفة', 'قسم البرامج القرآنية', 'وحدة تجريبية']);
   }
 
+  // تعبئة القوائم المرجعية بقيم مبدئية أول مرة بس (لو الشيت فاضي) - تقدرين
+  // تعدّلين أو تضيفين عليها من الشيت مباشرة بعد كذا وقت ما تبين
+  const deptSheet = ss.getSheetByName('الأقسام والوحدات');
+  if (deptSheet.getLastRow() === 1) {
+    [
+      ['قسم شؤون المكاتب', 'وحدة متابعة المكاتب'],
+      ['قسم شؤون المكاتب', 'وحدة الإشراف الميداني'],
+      ['قسم البرامج القرآنية', 'وحدة التحفيظ'],
+      ['قسم البرامج القرآنية', 'وحدة البرامج التربوية'],
+      ['قسم البرامج القرآنية', 'وحدة الاختبارات'],
+      ['أخرى', '']
+    ].forEach(function (row) { deptSheet.appendRow(row); });
+  }
+
+  const officesSheet = ss.getSheetByName('المكاتب');
+  if (officesSheet.getLastRow() === 1) {
+    officesSheet.appendRow(['مكتب الداخل']);
+    officesSheet.appendRow(['مكتب الحوية']);
+  }
+
+  const goalsSheet = ss.getSheetByName('الأهداف');
+  if (goalsSheet.getLastRow() === 1) {
+    [
+      ['استراتيجي', 'تعزيز جودة برامج تحفيظ القرآن الكريم'],
+      ['استراتيجي', 'تطوير الكفاءات الإشرافية والتعليمية'],
+      ['استراتيجي', 'توسيع قاعدة المستفيدات من البرامج'],
+      ['استراتيجي', 'تحسين كفاءة الإجراءات الإدارية والتشغيلية'],
+      ['استراتيجي', 'تعزيز الشراكات المجتمعية'],
+      ['تشغيلي', 'رفع نسبة إتمام الحفظ في الوقت المحدد'],
+      ['تشغيلي', 'زيادة عدد الحلقات النشطة'],
+      ['تشغيلي', 'تحسين جودة الاختبارات الدورية'],
+      ['تشغيلي', 'رفع نسبة رضا المستفيدات'],
+      ['تشغيلي', 'تطوير أدوات القياس المستخدمة'],
+      ['تشغيلي', 'تحسين نسبة الحضور والاستمرار']
+    ].forEach(function (row) { goalsSheet.appendRow(row); });
+  }
+
   invalidateCache_(USERS_SHEET_);
   invalidateCache_(REPORTS_SHEET_);
+  invalidateCache_(DEPARTMENTS_SHEET_);
+  invalidateCache_(OFFICES_SHEET_);
+  invalidateCache_(GOALS_SHEET_);
 
   const msg = 'تم إنشاء/تحديث الشيتات بنجاح. عبّي شيت "المستخدمات" بأسماء وحسابات الموظفات، ثم Deploy > Manage deployments > تعديل > New version لنشر آخر تحديث.';
   Logger.log(msg);
@@ -204,6 +254,7 @@ function handleRequest_(p) {
     switch (action) {
       case 'login': return json_(login_(p));
       case 'getLoginOptions': return json_(getLoginOptions_(p));
+      case 'getOrgLists': return json_(getOrgLists_(p));
       case 'uploadReportPdf': return json_(uploadReportPdf_(p));
       case 'getOrCreateDraftReport': return json_(getOrCreateDraftReport_(p));
       case 'loadReport': return json_(loadReport_(p));
@@ -268,6 +319,47 @@ function getLoginOptions_(p) {
     .sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); });
 
   return { ok: true, users: users };
+}
+
+/* القوائم المرجعية بنماذج التقرير (الأقسام/الوحدات التابعة لها/المكاتب/
+   الأهداف الاستراتيجية والتشغيلية) - تُقرأ من الشيت مباشرة بدل ما تكون
+   مكتوبة داخل كود الموقع، عشان تقدرين تضيفين/تعدّلين من الشيت نفسه */
+function getOrgLists_(p) {
+  const deptRows = sheetToObjects_(DEPARTMENTS_SHEET_, 300);
+  const departments = [];
+  const unitsByDepartment = {};
+  deptRows.forEach(function (r) {
+    const dept = String(r['القسم'] || '').trim();
+    const unit = String(r['الوحدة'] || '').trim();
+    if (!dept) return;
+    if (departments.indexOf(dept) === -1) departments.push(dept);
+    if (!unitsByDepartment[dept]) unitsByDepartment[dept] = [];
+    if (unit && unitsByDepartment[dept].indexOf(unit) === -1) unitsByDepartment[dept].push(unit);
+  });
+
+  const officeRows = sheetToObjects_(OFFICES_SHEET_, 300);
+  const offices = officeRows
+    .map(function (r) { return String(r['اسم المكتب'] || '').trim(); })
+    .filter(function (o) { return o; });
+
+  const goalRows = sheetToObjects_(GOALS_SHEET_, 300);
+  const strategicGoals = goalRows
+    .filter(function (r) { return String(r['النوع'] || '').trim() === 'استراتيجي'; })
+    .map(function (r) { return String(r['الهدف'] || '').trim(); })
+    .filter(function (g) { return g; });
+  const operationalGoals = goalRows
+    .filter(function (r) { return String(r['النوع'] || '').trim() === 'تشغيلي'; })
+    .map(function (r) { return String(r['الهدف'] || '').trim(); })
+    .filter(function (g) { return g; });
+
+  return {
+    ok: true,
+    departments: departments,
+    unitsByDepartment: unitsByDepartment,
+    offices: offices,
+    strategicGoals: strategicGoals,
+    operationalGoals: operationalGoals
+  };
 }
 
 /* ------------------- تخزين بيانات التقرير (كل الأقسام) بقوقل شيت -------------------

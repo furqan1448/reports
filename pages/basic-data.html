@@ -173,13 +173,15 @@
   import { renderTopbar } from "../js/components/topbar.js";
   import { getOrCreateDraftReport, loadReport, saveSection } from "../report-state.js";
   import { showSaveToast } from "../js/components/form-helpers.js";
-  import { DEPARTMENTS, UNITS_BY_DEPARTMENT, OFFICES, HIJRI_YEARS } from "../js/components/org-data.js";
+  import { loadOrgData, HIJRI_YEARS } from "../js/components/org-data.js";
 
   let reportId;
+  let orgData;
 
   requireAuth(async (profile) => {
     renderTopbar(profile, { homeHref: "../dashboard.html" });
     reportId = await getOrCreateDraftReport(profile);
+    orgData = await loadOrgData();
     initSelects();
     bindLogic();
     await hydrateForm();
@@ -188,10 +190,10 @@
   function initSelects() {
     const deptSel = document.getElementById("departmentName");
     deptSel.innerHTML = `<option value="" disabled selected>اختاري...</option>` +
-      DEPARTMENTS.map(d => `<option value="${d}">${d}</option>`).join("");
+      orgData.departments.map(d => `<option value="${d}">${d}</option>`).join("");
 
     const officeSel = document.getElementById("officeName");
-    officeSel.innerHTML = OFFICES.map(o => `<option value="${o}">${o}</option>`).join("");
+    officeSel.innerHTML = orgData.offices.map(o => `<option value="${o}">${o}</option>`).join("");
 
     const yearSel = document.getElementById("hijriYear");
     yearSel.innerHTML = HIJRI_YEARS.map(y => `<option value="${y}">${y}</option>`).join("");
@@ -221,7 +223,7 @@
 
   function updateUnitsList(department) {
     const unitSel = document.getElementById("unitName");
-    const units = UNITS_BY_DEPARTMENT[department] || [];
+    const units = orgData.unitsByDepartment[department] || [];
     if (units.length === 0) {
       unitSel.innerHTML = `<option value="" disabled selected>لا توجد وحدات مسجلة لهذا القسم</option>`;
       return;
