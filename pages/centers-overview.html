@@ -53,19 +53,19 @@
 <script type="module">
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
-  import { listAllCenters } from "../js/firebase/center-data.js";
+  import { listAllCenterData } from "../report-state.js";
   import { CAN_VIEW_CENTERS_OVERVIEW } from "../js/firebase/roles.js";
 
   let allCenters = [];
 
   requireAuth(async (profile) => {
-    // حماية إضافية على مستوى الواجهة (بالإضافة لقواعد Firestore نفسها)
+    // حماية إضافية على مستوى الواجهة (بالإضافة للتحقق من الدور بالسيرفر)
     if (!CAN_VIEW_CENTERS_OVERVIEW[profile.role]) {
       window.location.href = "../dashboard.html";
       return;
     }
     renderTopbar(profile, { homeHref: "../dashboard.html" });
-    allCenters = await listAllCenters();
+    allCenters = await listAllCenterData();
     renderStats();
     render("");
     document.getElementById("searchBox").addEventListener("input", (e) => render(e.target.value));
@@ -104,7 +104,7 @@
         <td>${c.teachersCount ?? "-"}</td>
         <td>${c.studentsCount ?? "-"}</td>
         <td>${c.completersCount ?? "-"}</td>
-        <td>${c.updatedAt?.toDate ? c.updatedAt.toDate().toLocaleDateString("ar-SA") : "-"}</td>
+        <td>${c.updatedAt ? new Date(c.updatedAt).toLocaleDateString("ar-SA") : "-"}</td>
       </tr>
       ${(c.extraStats || []).length ? `<tr><td colspan="5" style="text-align:right;background:#faf7f2;font-size:.8rem;color:var(--text-muted);">
         ${c.extraStats.map(s => `${s.label}: <b>${s.value}</b>`).join(" &nbsp;·&nbsp; ")}

@@ -246,13 +246,13 @@
   import {
     getOrCreateDraftReport,
     loadReport
-  } from "../js/report-state.js";
+  } from "../report-state.js";
 
 
   import {
     submitForReview,
     STATUS_LABELS_AR
-  } from "../js/firebase/workflow.js";
+  } from "../workflow.js";
 
 
   import {
@@ -558,6 +558,7 @@
     box.innerHTML =
 
       SECTIONS
+        .filter(section => section.key !== "review-approval")
         .map(section => {
 
           const key =

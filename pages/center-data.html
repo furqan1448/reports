@@ -69,17 +69,17 @@
 <script type="module">
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
-  import { getOrCreateCenterDoc, saveCenterData } from "../js/firebase/center-data.js";
+  import { getOrCreateDraftReport, loadReport, saveSection } from "../report-state.js";
   import { showSaveToast } from "../js/components/form-helpers.js";
 
-  let profileRef;
+  let reportId;
   let extraCount = 0;
 
   requireAuth(async (profile) => {
-    profileRef = profile;
     renderTopbar(profile, { homeHref: "../dashboard.html" });
-    const data = await getOrCreateCenterDoc(profile);
-    fillForm(data);
+    reportId = await getOrCreateDraftReport(profile);
+    const report = await loadReport(reportId);
+    fillForm((report && report.centerData) || {});
   });
 
   function fillForm(data) {
@@ -88,9 +88,9 @@
     document.getElementById("studentsCount").value = data.studentsCount ?? "";
     document.getElementById("completersCount").value = data.completersCount ?? "";
     (data.extraStats || []).forEach(row => addExtraRow(row.label, row.value));
-    if (data.updatedAt?.toDate) {
+    if (data.updatedAt) {
       document.getElementById("updatedNote").textContent =
-        "آخر تحديث: " + data.updatedAt.toDate().toLocaleDateString("ar-SA");
+        "آخر تحديث: " + new Date(data.updatedAt).toLocaleDateString("ar-SA");
     }
   }
 
@@ -129,12 +129,15 @@
       teachersCount: numOrNull(document.getElementById("teachersCount").value),
       studentsCount: numOrNull(document.getElementById("studentsCount").value),
       completersCount: numOrNull(document.getElementById("completersCount").value),
-      extraStats
+      extraStats,
+      updatedAt: new Date().toISOString()
     };
 
     try {
-      await saveCenterData(profileRef, payload);
+      await saveSection(reportId, "centerData", payload);
       showSaveToast("تم حفظ بيانات المركز");
+      document.getElementById("updatedNote").textContent =
+        "آخر تحديث: " + new Date(payload.updatedAt).toLocaleDateString("ar-SA");
     } catch (err) {
       console.error(err);
       showSaveToast("تعذر الحفظ، حاولي مجددًا", true);

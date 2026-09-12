@@ -18,7 +18,7 @@
   <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
     <div>
       <h2>نموذج توثيق الأداء</h2>
-      <p>اختاري القسم الذي تريدين تعبئته أو مراجعته. يتم حفظ البيانات فورًا على جهازك، وترتفع لقوقل شيت كملف PDF واحد عند الإصدار.</p>
+      <p>اختاري القسم الذي تريدين تعبئته أو مراجعته. يتم حفظ البيانات فورًا بقوقل شيت أول ما تعبّي أي حقل، فتلقين نفس بياناتك من أي جهاز تسجّلين دخول منه. عند الضغط على "إصدار التقرير" يتولّد ملف PDF ويُرفع لقوقل درايف ويُسجَّل رابطه.</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <button type="button" class="btn-add" id="clearBtn" style="width:auto; padding:12px 20px;">
@@ -37,7 +37,7 @@
   import { requireAuth } from "./js/auth.js";
   import { renderTopbar } from "./js/components/topbar.js";
   import { SECTIONS } from "./js/components/sections-config.js";
-  import { getOrCreateDraftReport, clearLocalReport } from "./js/report-state.js";
+  import { getOrCreateDraftReport, clearLocalReport } from "./report-state.js";
 
   let reportId;
 

@@ -123,7 +123,6 @@ export const SECTIONS = [
     desc: "قائمة التحقق، حالة الإرسال، ومسار الاعتماد",
     icon: "fa-signature",
     page: "pages/review-approval.html",
-    repeatable: false,
-    enabled: false
+    repeatable: false
   }
 ];

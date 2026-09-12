@@ -9,7 +9,7 @@
 // فيه كاش بالذاكرة فقط (يفضى تلقائيًا عند إغلاق/تحديث الصفحة) لتقليل عدد
 // الطلبات المتكررة لنفس التقرير بنفس الجلسة - هذا الكاش مو تخزين دائم.
 
-import { callApi } from "./api-config.js";
+import { callApi } from "./js/api-config.js";
 
 const PROFILE_KEY = "furqan_profile";
 
@@ -29,7 +29,12 @@ function currentUsername() {
 // أو تُنشئ واحد جديد فاضي إن لم يوجد. نفس المعرّف يرجع من أي جهاز تسجّل دخول
 // منه نفس الموظفة، لأن البحث يصير بـ"البريد الإلكتروني" بالسيرفر مباشرة.
 export async function getOrCreateDraftReport(profile) {
-  const res = await callApi("getOrCreateDraftReport", { username: profile.username });
+  const res = await callApi("getOrCreateDraftReport", {
+    username: profile.username,
+    name: profile.name || "",
+    department: profile.department || "",
+    unit: profile.unit || ""
+  });
   if (!res.ok) throw new Error(res.error || "تعذّر إنشاء/جلب التقرير");
   _cachedReportId = res.reportId;
   _cachedReportData = res.data || {};
@@ -90,4 +95,13 @@ export async function clearLocalReport(reportId) {
 export async function hasLocalDraft(reportId) {
   const data = await loadReport(reportId);
   return !!(data && Object.keys(data).length > 0);
+}
+
+// بيانات كل المراكز مجمّعة (قسم "بيانات المراكز" بلوحة إدارة التعليم) -
+// كل مركز يحفظ بياناته كقسم "centerData" داخل تقريره الخاص، وهذا الإجراء
+// يجمعها من كل الصفوف بشيت "التقارير" دفعة وحدة
+export async function listAllCenterData() {
+  const res = await callApi("listAllCenterData", {});
+  if (!res.ok) return [];
+  return res.centers || [];
 }

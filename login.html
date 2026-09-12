@@ -29,9 +29,11 @@
 
       <form id="loginForm">
         <div class="form-group">
-          <label for="email">البريد الإلكتروني</label>
+          <label for="email">الاسم</label>
           <div class="input-icon-group">
-            <input type="text" id="email" class="form-control" placeholder="البريد الإلكتروني اللي بشيت المستخدمات" required autocomplete="username">
+            <select id="email" class="form-control" required autocomplete="username">
+              <option value="" disabled selected>جارِ تحميل الأسماء...</option>
+            </select>
             <i class="fa-regular fa-user"></i>
           </div>
         </div>
@@ -54,7 +56,9 @@
         <div class="form-group">
           <label for="unitName">اسم الوحدة أو المركز</label>
           <div class="input-icon-group">
-            <input type="text" id="unitName" class="form-control" placeholder="اسم الوحدة أو المركز اللي بشيت الوحدات والمراكز" required autocomplete="username">
+            <select id="unitName" class="form-control" required autocomplete="username">
+              <option value="" disabled selected>جارِ تحميل الوحدات والمراكز...</option>
+            </select>
             <i class="fa-solid fa-building-columns"></i>
           </div>
         </div>
@@ -81,8 +85,49 @@
 
 <script type="module">
   import { login, loginUnit, redirectByRole } from "./js/auth.js";
+  import { callApi } from "./js/api-config.js";
 
   const alertBox = document.getElementById("alertBox");
+  const emailSelect = document.getElementById("email");
+  const unitSelect = document.getElementById("unitName");
+  const loginBtnEl = document.getElementById("loginBtn");
+  const unitBtnEl = document.getElementById("unitLoginBtn");
+
+  // -------- تعبئة قائمتي الدخول المنسدلتين (الأسماء + الوحدات/المراكز) --------
+  // بنفس فكرة نظام المقاصف: تُجلب القائمتان من الشيت مباشرة عند فتح الصفحة
+  // بدل ما تكتب الموظفة اسمها أو اسم وحدتها يدويًا.
+  async function loadLoginOptions(attempt) {
+    attempt = attempt || 1;
+    loginBtnEl.disabled = true;
+    unitBtnEl.disabled = true;
+    try {
+      const res = await callApi("getLoginOptions", {});
+      if (!res.ok) throw new Error(res.error || "تعذّر تحميل القوائم");
+
+      emailSelect.innerHTML = `<option value="" disabled selected>اختاري اسمك...</option>` +
+        res.employees.map(function (u) {
+          return `<option value="${u.username}">${u.name}</option>`;
+        }).join("");
+
+      unitSelect.innerHTML = `<option value="" disabled selected>اختاري الوحدة أو المركز...</option>` +
+        res.units.map(function (name) {
+          return `<option value="${name}">${name}</option>`;
+        }).join("");
+
+      loginBtnEl.disabled = false;
+      unitBtnEl.disabled = false;
+    } catch (err) {
+      console.error(err);
+      if (attempt < 3) {
+        setTimeout(function () { loadLoginOptions(attempt + 1); }, 1500);
+      } else {
+        emailSelect.innerHTML = `<option value="" disabled selected>تعذّر تحميل الأسماء</option>`;
+        unitSelect.innerHTML = `<option value="" disabled selected>تعذّر تحميل الوحدات</option>`;
+        showError("تعذّر الاتصال بالنظام. تأكدي من الإنترنت وأعيدي تحميل الصفحة.");
+      }
+    }
+  }
+  loadLoginOptions();
 
   const tabIndividual = document.getElementById("tabIndividual");
   const tabUnit = document.getElementById("tabUnit");

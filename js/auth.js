@@ -45,6 +45,25 @@ export async function login(username, password) {
   return profile;
 }
 
+// تسجيل دخول مشترك لوحدة أو مركز (اسم الوحدة/المركز + كلمة مرور واحدة يعرفها
+// الجميع بنفس الوحدة) - بنفس فكرة دخول المراكز بنظام المقاصف
+export async function loginUnit(name, password) {
+  const res = await callApi("loginUnit", { name, password });
+  if (!res.ok) {
+    throw new Error(res.error || "تعذّر تسجيل الدخول");
+  }
+  const profile = {
+    username: res.username,
+    uid: res.username,
+    name: res.name,
+    role: res.role,
+    department: res.department,
+    unit: res.unit
+  };
+  sessionStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  return profile;
+}
+
 // تسجيل الخروج
 export function logout() {
   sessionStorage.removeItem(PROFILE_KEY);

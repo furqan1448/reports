@@ -397,44 +397,19 @@
 
 
 import {
-
   requireAuth
-
 } from "../js/auth.js";
 
 
 import {
-
   renderTopbar
-
 } from "../js/components/topbar.js";
 
 
 import {
-
-  db
-
-} from "../js/firebase/config.js";
-
-
-import {
-
-  collection,
-
-  getDocs,
-
-  query,
-
-  where
-
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
-
-import {
-
+  listVisibleReports,
   STATUS_LABELS_AR
-
-} from "../js/firebase/workflow.js";
+} from "../workflow.js";
 
 
 
@@ -450,23 +425,6 @@ let allReports = [];
 let currentFilter = "all";
 
 let currentProfile = null;
-
-
-
-/*
-========================================
-الأدوار التي يسمح لها برؤية جميع التقارير
-========================================
-*/
-
-
-const FULL_ACCESS_ROLES = [
-
-  "education_admin",
-
-  "admin"
-
-];
 
 
 
@@ -556,222 +514,14 @@ requireAuth(
 
 /*
 ========================================
-تحميل التقارير
+تحميل التقارير - إدارة التعليم تشوف الكل، وغيرها تشوف تقريرها + أي تقرير
+أُرسل لها كمراجعة (يتحدد هذا كله بالسيرفر بإجراء listVisibleReports)
 ========================================
 */
 
 async function loadReports() {
 
-
-  const reportsRef =
-    collection(
-      db,
-      "reports"
-    );
-
-
-  /*
-   * الإدارة العليا تشاهد جميع التقارير
-   */
-
-  if (
-
-    FULL_ACCESS_ROLES.includes(
-      currentProfile?.role
-    )
-
-  ) {
-
-    const snap =
-      await getDocs(
-        reportsRef
-      );
-
-
-    allReports =
-      snap.docs.map(
-
-        d => ({
-
-          id:
-            d.id,
-
-          ...d.data()
-
-        })
-
-      );
-
-  }
-
-
-  else {
-
-
-    /*
-     * نجيب تقارير صاحبة الحساب
-     */
-
-    const ownedQuery =
-      query(
-
-        reportsRef,
-
-        where(
-
-          "ownerUid",
-
-          "==",
-
-          currentProfile.uid
-
-        )
-
-      );
-
-
-    const ownedSnap =
-      await getDocs(
-        ownedQuery
-      );
-
-
-    /*
-     * ونجيب التقارير التي أُرسلت
-     * إلى البريد الإلكتروني للحساب
-     */
-
-    const email =
-      String(
-
-        currentProfile.email || ""
-
-      )
-        .trim()
-        .toLowerCase();
-
-
-    let reviewerSnap = null;
-
-
-    if (email) {
-
-      const reviewerQuery =
-        query(
-
-          reportsRef,
-
-          where(
-
-            "reviewerEmail",
-
-            "==",
-
-            email
-
-          )
-
-        );
-
-
-      reviewerSnap =
-        await getDocs(
-          reviewerQuery
-        );
-
-    }
-
-
-    /*
-     * دمج النتائج بدون تكرار
-     */
-
-    const map =
-      new Map();
-
-
-    ownedSnap.docs.forEach(
-
-      d => {
-
-        map.set(
-
-          d.id,
-
-          {
-
-            id:
-              d.id,
-
-            ...d.data()
-
-          }
-
-        );
-
-      }
-
-    );
-
-
-    if (reviewerSnap) {
-
-      reviewerSnap.docs.forEach(
-
-        d => {
-
-          map.set(
-
-            d.id,
-
-            {
-
-              id:
-                d.id,
-
-              ...d.data()
-
-            }
-
-          );
-
-        }
-
-      );
-
-    }
-
-
-    allReports =
-      Array.from(
-        map.values()
-      );
-
-  }
-
-
-  /*
-   * ترتيب الأحدث أولًا
-   */
-
-  allReports.sort(
-
-    (a, b) =>
-
-      (
-        b.updatedAt?.toMillis?.() ||
-        0
-      )
-
-      -
-
-      (
-        a.updatedAt?.toMillis?.() ||
-        0
-      )
-
-  );
-
+  allReports = await listVisibleReports(currentProfile);
 
   render();
 

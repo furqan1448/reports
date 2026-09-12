@@ -26,7 +26,7 @@
 <div class="page-wrap" style="max-width:900px;">
   <div class="page-header">
     <h2><i class="fa-solid fa-clipboard-check"></i> الاعتماد النهائي للتقارير</h2>
-    <p>التقارير التي بانتظار الاعتماد النهائي من إدارة التعليم. <a href="all-reports.html"><i class="fa-solid fa-folder-open"></i> عرض كل التقارير (كل الحالات)</a></p>
+    <p>التقارير التي بانتظار الاعتماد النهائي من إدارة التعليم. <a href="all-reports.html"><i class="fa-solid fa-folder-open"></i> عرض كل التقارير (كل الحالات)</a> · <a href="centers-overview.html"><i class="fa-solid fa-building-columns"></i> بيانات كل المراكز</a></p>
   </div>
 
   <div class="stat-grid" id="statGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px;"></div>
@@ -37,10 +37,8 @@
 <script type="module">
   import { requireAuth } from "../js/auth.js";
   import { renderTopbar } from "../js/components/topbar.js";
-  import { listReportsPendingForRole, approveReport, returnForEdit, rejectReport, STATUS_LABELS_AR } from "../js/firebase/workflow.js";
+  import { listReportsPendingForRole, approveReport, returnForEdit, rejectReport, getStatusCounts, STATUS_LABELS_AR } from "../workflow.js";
   import { showSaveToast } from "../js/components/form-helpers.js";
-  import { db } from "../js/firebase/config.js";
-  import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   let profileRef;
 
@@ -52,12 +50,7 @@
   });
 
   async function renderOverallStats() {
-    const snap = await getDocs(collection(db, "reports"));
-    const counts = {};
-    snap.forEach(d => {
-      const status = d.data().status || "draft";
-      counts[status] = (counts[status] || 0) + 1;
-    });
+    const counts = await getStatusCounts();
     const grid = document.getElementById("statGrid");
     grid.innerHTML = Object.keys(STATUS_LABELS_AR).map(key => `
       <div style="background:linear-gradient(135deg,var(--maroon-900),var(--maroon-700));color:#fff;border-radius:14px;padding:14px;text-align:center;">
