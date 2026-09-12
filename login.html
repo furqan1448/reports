@@ -22,19 +22,14 @@
     <div class="body">
       <div id="alertBox" class="alert alert-error"></div>
 
-      <div class="login-tabs" style="display:flex;gap:8px;margin-bottom:18px;">
-        <button type="button" class="tab-btn active" id="tabIndividual" style="flex:1;">دخول فردي</button>
-        <button type="button" class="tab-btn" id="tabUnit" style="flex:1;">دخول وحدة أو مركز</button>
-      </div>
-
       <form id="loginForm">
         <div class="form-group">
-          <label for="email">الاسم</label>
+          <label for="username">الوحدة / اسم المستخدم</label>
           <div class="input-icon-group">
-            <select id="email" class="form-control" required autocomplete="username">
-              <option value="" disabled selected>جارِ تحميل الأسماء...</option>
+            <select id="username" class="form-control" required autocomplete="username">
+              <option value="" disabled selected>جارِ تحميل القائمة...</option>
             </select>
-            <i class="fa-regular fa-user"></i>
+            <i class="fa-solid fa-building-columns"></i>
           </div>
         </div>
 
@@ -51,31 +46,6 @@
           <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
         </button>
       </form>
-
-      <form id="unitLoginForm" class="d-none">
-        <div class="form-group">
-          <label for="unitName">اسم الوحدة أو المركز</label>
-          <div class="input-icon-group">
-            <select id="unitName" class="form-control" required autocomplete="username">
-              <option value="" disabled selected>جارِ تحميل الوحدات والمراكز...</option>
-            </select>
-            <i class="fa-solid fa-building-columns"></i>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="unitPassword">كلمة المرور</label>
-          <div class="input-icon-group">
-            <input type="password" id="unitPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
-            <i class="fa-solid fa-lock"></i>
-          </div>
-        </div>
-
-        <button type="submit" class="btn-primary" id="unitLoginBtn">
-          <span id="unitLoginBtnText">تسجيل الدخول</span>
-          <span id="unitLoginSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
-        </button>
-      </form>
     </div>
     <div class="login-footer">
       جميع الحقوق محفوظة &copy; جمعية فرقان لتحفيظ القرآن الكريم
@@ -84,76 +54,20 @@
 </div>
 
 <script type="module">
-  import { login, loginUnit, redirectByRole } from "./js/auth.js";
+  import { login, redirectByRole } from "./js/auth.js";
   import { callApi } from "./js/api-config.js";
 
   const alertBox = document.getElementById("alertBox");
-  const emailSelect = document.getElementById("email");
-  const unitSelect = document.getElementById("unitName");
-  const loginBtnEl = document.getElementById("loginBtn");
-  const unitBtnEl = document.getElementById("unitLoginBtn");
-
-  // -------- تعبئة قائمتي الدخول المنسدلتين (الأسماء + الوحدات/المراكز) --------
-  // بنفس فكرة نظام المقاصف: تُجلب القائمتان من الشيت مباشرة عند فتح الصفحة
-  // بدل ما تكتب الموظفة اسمها أو اسم وحدتها يدويًا.
-  async function loadLoginOptions(attempt) {
-    attempt = attempt || 1;
-    loginBtnEl.disabled = true;
-    unitBtnEl.disabled = true;
-    try {
-      const res = await callApi("getLoginOptions", {});
-      if (!res.ok) throw new Error(res.error || "تعذّر تحميل القوائم");
-
-      emailSelect.innerHTML = `<option value="" disabled selected>اختاري اسمك...</option>` +
-        res.employees.map(function (u) {
-          return `<option value="${u.username}">${u.name}</option>`;
-        }).join("");
-
-      unitSelect.innerHTML = `<option value="" disabled selected>اختاري الوحدة أو المركز...</option>` +
-        res.units.map(function (name) {
-          return `<option value="${name}">${name}</option>`;
-        }).join("");
-
-      loginBtnEl.disabled = false;
-      unitBtnEl.disabled = false;
-    } catch (err) {
-      console.error(err);
-      if (attempt < 3) {
-        setTimeout(function () { loadLoginOptions(attempt + 1); }, 1500);
-      } else {
-        emailSelect.innerHTML = `<option value="" disabled selected>تعذّر تحميل الأسماء</option>`;
-        unitSelect.innerHTML = `<option value="" disabled selected>تعذّر تحميل الوحدات</option>`;
-        showError("تعذّر الاتصال بالنظام. تأكدي من الإنترنت وأعيدي تحميل الصفحة.");
-      }
-    }
-  }
-  loadLoginOptions();
-
-  const tabIndividual = document.getElementById("tabIndividual");
-  const tabUnit = document.getElementById("tabUnit");
+  const usernameSelect = document.getElementById("username");
   const loginForm = document.getElementById("loginForm");
-  const unitLoginForm = document.getElementById("unitLoginForm");
-
-  function showTab(tab) {
-    alertBox.classList.remove("show");
-    const isIndividual = tab === "individual";
-    tabIndividual.classList.toggle("active", isIndividual);
-    tabUnit.classList.toggle("active", !isIndividual);
-    loginForm.classList.toggle("d-none", !isIndividual);
-    unitLoginForm.classList.toggle("d-none", isIndividual);
-  }
-  tabIndividual.addEventListener("click", () => showTab("individual"));
-  tabUnit.addEventListener("click", () => showTab("unit"));
+  const btn = document.getElementById("loginBtn");
+  const btnText = document.getElementById("loginBtnText");
+  const spinner = document.getElementById("loginSpinner");
 
   function showError(msg) {
     alertBox.textContent = msg;
     alertBox.classList.add("show");
   }
-
-  // -------- دخول فردي (بريد إلكتروني) --------
-  const btn = document.getElementById("loginBtn");
-  const btnText = document.getElementById("loginBtnText");
-  const spinner = document.getElementById("loginSpinner");
 
   function setLoading(loading) {
     btn.disabled = loading;
@@ -161,50 +75,50 @@
     btnText.textContent = loading ? "جارٍ الدخول..." : "تسجيل الدخول";
   }
 
+  // -------- تعبئة قائمة الدخول المنسدلة --------
+  // بنفس فكرة نظام المقاصف بالضبط: قائمة وحدة واحدة (بدون تبويبات "فردي" و"وحدة")
+  // تُجلب من شيت "المستخدمات" مباشرة، وتشمل كل أنواع الحسابات (موظفة، مسؤولة
+  // وحدة، مديرة، مركز...) بنفس القائمة.
+  async function loadLoginOptions(attempt) {
+    attempt = attempt || 1;
+    btn.disabled = true;
+    try {
+      const res = await callApi("getLoginOptions", {});
+      if (!res.ok) throw new Error(res.error || "تعذّر تحميل القائمة");
+
+      usernameSelect.innerHTML = `<option value="" disabled selected>اختاري الوحدة...</option>` +
+        res.users.map(function (u) {
+          return `<option value="${u.username}">${u.name}</option>`;
+        }).join("");
+
+      btn.disabled = false;
+    } catch (err) {
+      console.error(err);
+      if (attempt < 3) {
+        setTimeout(function () { loadLoginOptions(attempt + 1); }, 1500);
+      } else {
+        usernameSelect.innerHTML = `<option value="" disabled selected>تعذّر تحميل القائمة</option>`;
+        showError("تعذّر الاتصال بالنظام. تأكدي من الإنترنت وأعيدي تحميل الصفحة.");
+      }
+    }
+  }
+  loadLoginOptions();
+
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     alertBox.classList.remove("show");
     setLoading(true);
 
-    const email = document.getElementById("email").value.trim();
+    const username = usernameSelect.value.trim();
     const password = document.getElementById("password").value;
 
     try {
-      const profile = await login(email, password);
+      const profile = await login(username, password);
       redirectByRole(profile);
     } catch (err) {
       console.error(err);
-      showError(err.message || "تعذّر تسجيل الدخول. تحققي من البريد الإلكتروني وكلمة المرور.");
+      showError(err.message || "تعذّر تسجيل الدخول. تحققي من كلمة المرور.");
       setLoading(false);
-    }
-  });
-
-  // -------- دخول مشترك لوحدة أو مركز --------
-  const unitBtn = document.getElementById("unitLoginBtn");
-  const unitBtnText = document.getElementById("unitLoginBtnText");
-  const unitSpinner = document.getElementById("unitLoginSpinner");
-
-  function setUnitLoading(loading) {
-    unitBtn.disabled = loading;
-    unitSpinner.classList.toggle("d-none", !loading);
-    unitBtnText.textContent = loading ? "جارٍ الدخول..." : "تسجيل الدخول";
-  }
-
-  unitLoginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    alertBox.classList.remove("show");
-    setUnitLoading(true);
-
-    const name = document.getElementById("unitName").value.trim();
-    const password = document.getElementById("unitPassword").value;
-
-    try {
-      const profile = await loginUnit(name, password);
-      redirectByRole(profile);
-    } catch (err) {
-      console.error(err);
-      showError(err.message || "تعذّر تسجيل الدخول. تحققي من اسم الوحدة/المركز وكلمة المرور.");
-      setUnitLoading(false);
     }
   });
 </script>

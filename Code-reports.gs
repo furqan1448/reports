@@ -22,8 +22,11 @@
  * 3) احذفي أي كود موجود بالمحرر، والصقي هذا الكود كامل.
  * 4) شغلي دالة setup() مرة وحدة من القائمة أعلى المحرر (تقدرين تشغليها مرة
  *    ثانية بأمان بعد أي تحديث - تضيف الأعمدة الجديدة الناقصة فقط ولا تمسح شي).
- * 5) عبّي شيت "المستخدمات" بأسماء الموظفات وبريدهن الإلكتروني وكلمة مرور لكل وحدة، ودورها.
- *    القيم المسموحة بعمود "الدور": موظفة / مسؤولة الوحدة / مديرة الوحدة / مديرة القسم / إدارة التعليم
+ * 5) عبّي شيت "المستخدمات" باسم كل موظفة/وحدة/مركز، واسم دخول (يوضع بعمود
+ *    "البريد الإلكتروني" - ما يشترط يكون إيميل حقيقي، تقدرين تكتبين أي اسم
+ *    فريد)، وكلمة مرور، ودورها. الوحدات والمراكز تُضاف كصفوف عادية بنفس
+ *    الشيت (نفس أي موظفة)، بس بدور "مديرة مركز" مثلًا.
+ *    القيم المسموحة بعمود "الدور": موظفة / مسؤولة الوحدة / مديرة الوحدة / مديرة القسم / إدارة التعليم / مديرة مركز
  * 6) Deploy > New deployment > اختاري نوع "Web app":
  *      - Execute as: Me (حسابك) — هذا يخلي الشيت خاص تمامًا ولا يحتاج مشاركته مع أي أحد
  *      - Who has access: Anyone — عشان الموقع يقدر يوصل للرابط (هذا ما يعني إن أحد يشوف الشيت)
@@ -36,7 +39,6 @@
  */
 
 const USERS_SHEET_ = 'المستخدمات';
-const UNITS_SHEET_ = 'الوحدات والمراكز';
 const REPORTS_SHEET_ = 'التقارير';
 const REPORT_COLUMNS_ = ['المعرف', 'البريد الإلكتروني', 'الاسم', 'القسم', 'الوحدة', 'الحالة', 'بيانات التقرير', 'البريد الإلكتروني للمراجع', 'سجل الإجراءات', 'آخر تحديث', 'تاريخ الإصدار', 'رابط PDF'];
 const PDF_FOLDER_NAME_ = 'تقارير الأداء - فرقان';
@@ -75,7 +77,6 @@ function setup() {
 
   const sheets = {
     'المستخدمات': ['الاسم', 'البريد الإلكتروني', 'كلمة المرور', 'الدور', 'القسم', 'الوحدة'],
-    'الوحدات والمراكز': ['اسم الوحدة أو المركز', 'كلمة المرور'],
     'التقارير': REPORT_COLUMNS_
   };
 
@@ -202,7 +203,6 @@ function handleRequest_(p) {
     const action = p.action;
     switch (action) {
       case 'login': return json_(login_(p));
-      case 'loginUnit': return json_(loginUnit_(p));
       case 'getLoginOptions': return json_(getLoginOptions_(p));
       case 'uploadReportPdf': return json_(uploadReportPdf_(p));
       case 'getOrCreateDraftReport': return json_(getOrCreateDraftReport_(p));
@@ -227,19 +227,19 @@ function handleRequest_(p) {
 /* ------------------- تسجيل الدخول ------------------- */
 
 function login_(p) {
-  const email = String(p.username || '').trim().toLowerCase();
+  const username = String(p.username || '').trim().toLowerCase();
   const password = String(p.password || '').trim();
 
   const rows = sheetToObjects_(USERS_SHEET_, 300);
   const found = rows.find(function (r) {
-    return String(r['البريد الإلكتروني']).trim().toLowerCase() === email;
+    return String(r['البريد الإلكتروني']).trim().toLowerCase() === username;
   });
 
   if (!found) {
-    return { ok: false, error: 'ما لقينا هذا البريد الإلكتروني "' + p.username + '" بشيت "المستخدمات". تأكدي إنه مكتوب بالضبط.' };
+    return { ok: false, error: 'ما لقينا اسم المستخدم "' + p.username + '" بشيت "المستخدمات". تأكدي إنه مكتوب بالضبط.' };
   }
   if (String(found['كلمة المرور']).trim() !== password) {
-    return { ok: false, error: 'البريد الإلكتروني صحيح، بس كلمة المرور مو مطابقة.' };
+    return { ok: false, error: 'اسم المستخدم صحيح، بس كلمة المرور مو مطابقة.' };
   }
 
   const roleLabel = String(found['الدور'] || '').trim();
@@ -255,56 +255,19 @@ function login_(p) {
   };
 }
 
-/* قوائم الدخول المنسدلة - بنفس فكرة نظام المقاصف: بدل ما تكتب الموظفة
-   بريدها أو اسم وحدتها يدويًا، تختاره من قائمة جاهزة معبّاة من الشيت.
-   ترجع قائمتين: أسماء الموظفات (مع البريد المرتبط بكل اسم) وأسماء
-   الوحدات/المراكز، عشان تتعبّى بها القائمتين المنسدلتين بصفحة الدخول. */
+/* قائمة الدخول المنسدلة - بنفس فكرة نظام المقاصف: بدل ما تكتب الموظفة أو
+   الوحدة اسمها يدويًا، تختاره من قائمة جاهزة معبّاة من شيت "المستخدمات"
+   مباشرة (نفس الشيت لكل أنواع الحسابات - موظفة، مسؤولة وحدة، مديرة، مركز...). */
 function getLoginOptions_(p) {
   const userRows = sheetToObjects_(USERS_SHEET_, 300);
-  const employees = userRows
+  const users = userRows
     .map(function (r) {
       return { username: String(r['البريد الإلكتروني'] || '').trim(), name: String(r['الاسم'] || '').trim() };
     })
     .filter(function (u) { return u.username && u.name; })
     .sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); });
 
-  const unitRows = sheetToObjects_(UNITS_SHEET_, 300);
-  const units = unitRows
-    .map(function (r) { return String(r['اسم الوحدة أو المركز'] || '').trim(); })
-    .filter(function (u) { return u; })
-    .sort(function (a, b) { return a.localeCompare(b, 'ar'); });
-
-  return { ok: true, employees: employees, units: units };
-}
-
-/* تسجيل دخول مشترك لوحدة أو مركز (حساب واحد مشترك، بدون بريد إلكتروني فردي) -
-   بنفس فكرة دخول المراكز بنظام المقاصف: اسم الوحدة/المركز + كلمة مرور واحدة
-   يعرفها الجميع بنفس الوحدة. البيانات تُخزَّن وتُسترجع بنفس شيت "التقارير"
-   باستخدام اسم الوحدة/المركز نفسه كمعرّف فريد (بدل البريد الإلكتروني). */
-function loginUnit_(p) {
-  const name = String(p.name || '').trim();
-  const password = String(p.password || '').trim();
-
-  const rows = sheetToObjects_(UNITS_SHEET_, 300);
-  const found = rows.find(function (r) {
-    return String(r['اسم الوحدة أو المركز']).trim().toLowerCase() === name.toLowerCase();
-  });
-
-  if (!found) {
-    return { ok: false, error: 'ما لقينا هذا الاسم "' + p.name + '" بشيت "الوحدات والمراكز". تأكدي إنه مكتوب بالضبط.' };
-  }
-  if (String(found['كلمة المرور']).trim() !== password) {
-    return { ok: false, error: 'الاسم صحيح، بس كلمة المرور مو مطابقة.' };
-  }
-
-  return {
-    ok: true,
-    username: String(found['اسم الوحدة أو المركز']).trim(),
-    name: String(found['اسم الوحدة أو المركز']).trim(),
-    role: 'center_manager',
-    department: '',
-    unit: String(found['اسم الوحدة أو المركز']).trim()
-  };
+  return { ok: true, users: users };
 }
 
 /* ------------------- تخزين بيانات التقرير (كل الأقسام) بقوقل شيت -------------------
